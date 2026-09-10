@@ -63,11 +63,12 @@ tr.sel td{background:#f4efff}
 tr.sel td.k{box-shadow:inset 3px 0 0 var(--violet)}
 tr.hl.sel td{background:#fdf1e8}
 .note{font-size:12.5px;color:var(--dim);margin:9px 2px 0;line-height:1.5}
-/* a radical drawn in plain CSS: the glyph, then an overlined radicand.
-   No math-rendering library is used anywhere in this file. */
+/* A radical in plain CSS: an index superscript, the glyph, then the radicand. No
+   vinculum over the radicand — a CSS border cannot meet the hook of the glyph, and
+   the join looks broken rather than absent. No math-rendering library is used. */
 .rdcl{white-space:nowrap}
 .rdcl sup{font-size:.6em;vertical-align:.62em;margin-right:-.34em}
-.rdcl .rc{border-top:1px solid currentColor;padding:0 .14em 0 .05em;margin-left:.02em}
+.rdcl .rc{padding-left:.05em}
 .approx{color:var(--faint);font-weight:400}
 /* ---- the walk: the centre of the applet ---- */
 .walk{border:1.5px solid #cdbdf6;border-radius:10px;margin-bottom:14px;
