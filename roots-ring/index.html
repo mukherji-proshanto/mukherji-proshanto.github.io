@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roots Ring — nth Roots of a Complex Number</title>
+<style>
+:root{
+  --ink:#191c21; --dim:#5b6470; --faint:#8b95a4;
+  --bg:#ffffff; --panel:#fbfcfe; --line:#dde3ea; --grid:#edf0f4;
+  --blue:#1d4ed8; --crimson:#c2334d; --violet:#6d28d9; --violet-soft:#a78bfa;
+  --amber:#dda45f; --emerald:#79c3a6; --hl:#e8890c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1220px;margin:0 auto;padding:16px 18px 34px}
+h1{font-size:20px;margin:0 0 2px;letter-spacing:-.01em}
+.sub{font-size:13px;color:var(--dim);margin:0 0 12px;max-width:88ch}
+.sub b{color:var(--ink)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:9px 14px;
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:8px 12px}
+.ctl{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--dim)}
+.ctl b{color:var(--ink);font-variant-numeric:tabular-nums;min-width:1.4em;text-align:right}
+.ctl input[type=range]{width:140px}
+.zoombtn{min-width:2em;font-weight:600}
+.ctl input[type=number]{width:5.2em;font:inherit;font-size:13px;padding:2px 5px;
+  border:1px solid var(--line);border-radius:6px;background:#fff;
+  font-variant-numeric:tabular-nums}
+.sep{width:1px;align-self:stretch;background:var(--line)}
+button{font:inherit;font-size:12.5px;padding:3px 9px;border:1px solid var(--line);
+  background:#fff;border-radius:6px;color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){border-color:#b9c3cf;background:#f5f7fa}
+button:disabled{opacity:.45;cursor:default}
+button.on{background:#f1ebfe;border-color:#c4b1f5;color:var(--violet)}
+select{font:inherit;font-size:12.5px;padding:2px 4px;border:1px solid var(--line);
+  border-radius:6px;background:#fff}
+.readout{margin:9px 0 12px;font-size:13.5px;color:var(--dim);
+  font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:4px 18px}
+.readout b{color:var(--ink);font-weight:600}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.82fr);gap:16px;
+  align-items:start}
+@media (max-width:940px){main{grid-template-columns:minmax(0,1fr)}}
+.panel{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:#fff}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--faint);margin:0 0 8px;font-weight:600}
+svg#plane{display:block;width:min(100%,48vh);aspect-ratio:1/1;margin:0 auto;
+  touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
+.legend{display:flex;flex-wrap:wrap;gap:3px 14px;margin-top:8px;font-size:11.5px;
+  color:var(--dim)}
+.legend i.sw{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;
+  vertical-align:-1px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
+  text-align:left;font-weight:600;padding:0 7px 6px;border-bottom:1px solid var(--line)}
+td{padding:5px 7px;border-bottom:1px solid var(--grid);font-size:13px;cursor:pointer}
+td.k{color:var(--faint);width:2.4em}
+td.pair{color:var(--ink);white-space:nowrap}
+td.pol{color:var(--blue);white-space:nowrap}
+td.rec{color:var(--ink);white-space:nowrap}
+tr.hl td{background:#fff6e5}
+tr.sel td{background:#f4efff}
+tr.sel td.k{box-shadow:inset 3px 0 0 var(--violet)}
+tr.hl.sel td{background:#fdf1e8}
+.note{font-size:12.5px;color:var(--dim);margin:9px 2px 0;line-height:1.5}
+/* a radical drawn in plain CSS: the glyph, then an overlined radicand.
+   No math-rendering library is used anywhere in this file. */
+.rdcl{white-space:nowrap}
+.rdcl sup{font-size:.6em;vertical-align:.62em;margin-right:-.34em}
+.rdcl .rc{border-top:1px solid currentColor;padding:0 .14em 0 .05em;margin-left:.02em}
+.approx{color:var(--faint);font-weight:400}
+/* ---- the walk: the centre of the applet ---- */
+.walk{border:1.5px solid #cdbdf6;border-radius:10px;margin-bottom:14px;
+  background:#faf7ff;padding:11px 14px 12px}
+.walk h2{font-size:13px;text-transform:none;letter-spacing:0;color:var(--violet);
+  font-weight:700;margin:0 0 3px}
+.walk-lead{font-size:12.5px;color:var(--dim);margin:0 0 10px;max-width:96ch;line-height:1.5}
+.walk-grid{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:flex-start}
+.walk-col{min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:2px}
+.chip{font-size:12.5px;padding:2px 8px;border-radius:20px}
+.chip.on{background:var(--violet);border-color:var(--violet);color:#fff;font-weight:700}
+.chip.hl{background:#fff0d6;border-color:#e8b866}
+.chip.on.hl{background:var(--violet);border-color:#7a4405}
+.lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
+  font-weight:600;display:block;margin-bottom:4px}
+.walk-eq{font-size:15px;font-variant-numeric:tabular-nums;line-height:1.7}
+.walk-eq b{font-weight:700}
+.walk-eq .landed{background:#ede4ff;color:var(--violet);font-weight:700;
+  padding:1px 6px;border-radius:5px}
+.decomp{font-size:13.5px;font-variant-numeric:tabular-nums;line-height:1.65;
+  white-space:nowrap}
+.decomp .op{display:inline-block;min-width:5.6em;padding-right:.5em;font-size:11px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:600}
+.track{display:flex;gap:3px;margin:2px 0 8px}
+.cell{min-width:1.9em;text-align:center;font-size:11.5px;padding:2px 3px;border-radius:4px;
+  background:#efeafc;color:#8a7cb8;font-variant-numeric:tabular-nums}
+.cell.done{background:#d9ccfa;color:#4c1d95}
+.cell.now{background:var(--violet);color:#fff;font-weight:700}
+.walk-btns{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.walk-hint{font-size:12.5px;color:var(--faint);line-height:1.5}
+/* ---- plane ---- */
+.gridline{stroke:var(--grid);stroke-width:1}
+.axis{stroke:#a7b0bc;stroke-width:1.2}
+.tick{fill:var(--faint);font-size:10.5px}
+.rootc{fill:none;stroke:#8b95a4;stroke-width:1;stroke-dasharray:5 5;opacity:.75}
+.arc1{fill:none;stroke:var(--amber);stroke-width:2.2;stroke-linecap:round}
+.arc2{fill:none;stroke:var(--emerald);stroke-width:2.2;stroke-linecap:round}
+.arctick{stroke:var(--emerald);stroke-width:1.1;opacity:.6}
+.turn{fill:none;stroke:var(--violet-soft);stroke-width:2}
+.turn.now{stroke:var(--violet);stroke-width:3.2;stroke-linecap:round}
+.spiral{fill:none;stroke:var(--violet);stroke-width:1.4;stroke-dasharray:4 3;opacity:.75}
+.vecw{stroke:var(--crimson);stroke-width:2.2}
+.vecr{stroke:var(--blue);stroke-width:1;opacity:.5}
+.vecr.sel{stroke:var(--violet);stroke-width:2;opacity:1}
+.vecp{stroke:var(--violet);stroke-width:2.4}
+.vecp.prev{stroke:var(--violet-soft);stroke-width:1.6}
+.pw{fill:var(--violet)}
+.pwring{fill:none;stroke:var(--violet);stroke-width:1.6}
+.rootpt{fill:var(--blue);stroke:#fff;stroke-width:1.2}
+.rootpt.sel{fill:var(--violet)}
+.rootpt.hl{fill:var(--hl);stroke:#7a4405;stroke-width:2.2;r:8}
+.wpt{fill:var(--crimson);stroke:#fff;stroke-width:1.5}
+.hit{fill:transparent;cursor:pointer}
+.whit{fill:transparent;cursor:grab}
+.lbl{font-size:11.5px;paint-order:stroke;stroke:#fff;stroke-width:3.4px;
+  stroke-linejoin:round;fill:var(--dim)}
+.lbl.root{fill:var(--blue);font-size:12px}
+.lbl.root.sel{fill:var(--violet);font-weight:700}
+.lbl.root.hl{fill:#7a4405;font-weight:700}
+.lbl.wl{fill:var(--crimson);font-size:13px;font-weight:700}
+.lbl.a1{fill:#a9762f;font-size:12px;font-weight:600}
+.lbl.a2{fill:#3f8f74;font-size:12px;font-weight:600}
+.lbl.pwl{fill:var(--violet);font-size:11.5px;font-weight:700}
+.lbl.turnl{fill:var(--violet);font-size:12.5px;font-weight:700}
+.lbl.zero{fill:var(--ink);font-size:13px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Roots Ring</h1>
+<p class="sub">The <i>n</i>th roots of a complex number <b>w</b> are
+<b>z<sub>1</sub></b> &hellip; <b>z<sub>n</sub></b>, each one a solution of
+<b>z<sup>n</sup> = w</b>. Polar form is <b>r cis θ</b>, where
+<b>cis θ = cos θ + i sin θ</b>. Drag <b>w</b>, or type it below.</p>
+
+<div class="bar">
+  <label class="ctl"><span><i>n</i></span>
+    <input type="range" id="nSlider" min="2" max="12" step="1" value="3">
+    <b id="nOut">3</b></label>
+  <span class="sep"></span>
+  <span class="ctl">w =
+    <input type="number" id="wRe" step="any" value="1" aria-label="real part of w">
+    +
+    <input type="number" id="wIm" step="any" value="0" aria-label="imaginary part of w">
+    i</span>
+  <span class="sep"></span>
+  <span class="ctl">
+    <button data-w="1,0">1</button>
+    <button data-w="0,1">i</button>
+    <button data-w="1,1">1 + i</button>
+    <button data-w="-8,0">&minus;8</button>
+    <button data-w="16,0">16</button>
+    <button data-w="0,0">0</button>
+  </span>
+  <span class="sep"></span>
+  <span class="ctl">zoom
+    <button class="zoombtn" id="zoomIn" aria-label="zoom in">+</button>
+    <button class="zoombtn" id="zoomOut" aria-label="zoom out">&minus;</button>
+    <button id="zoomFit">fit w</button>
+    <b id="zoomLab"></b></span>
+</div>
+
+<div class="readout" id="readout"></div>
+
+<section class="walk">
+  <h2>Raising a root to the <i>n</i>th power</h2>
+  <p class="walk-lead">Pick a root and step it up through its powers.</p>
+  <div class="walk-grid">
+    <div class="walk-col">
+      <span class="lab">root</span>
+      <div class="chips" id="rootChips"></div>
+    </div>
+    <div class="walk-col">
+      <span class="lab">step</span>
+      <div class="track" id="track"></div>
+      <div class="walk-btns">
+        <button id="puBack">&#9666; Back</button>
+        <button id="puNext">Next power &#9656;</button>
+        <button id="puPlay">Play</button>
+        <button id="puReset">Reset</button>
+      </div>
+    </div>
+    <div class="walk-col" style="flex:1 1 20em">
+      <span class="lab">where you are</span>
+      <div class="walk-eq" id="walkEq"></div>
+      <div class="decomp" id="walkDecomp"></div>
+    </div>
+  </div>
+</section>
+
+<main>
+  <section class="panel">
+    <h2>Geometry</h2>
+    <svg id="plane" viewBox="0 0 560 560" role="img"
+         aria-label="Complex plane showing w, the circle of nth roots, and the powers of the selected root"></svg>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Algebra</h2>
+    <table>
+      <thead><tr>
+        <th class="k">k</th>
+        <th>(r, θ)</th>
+        <th>r cis θ</th>
+        <th>a + bi</th>
+      </tr></thead>
+      <tbody id="algBody"></tbody>
+    </table>
+    <p class="note" id="algNote"></p>
+  </section>
+</main>
+
+</div>
+<script>
+/* Roots Ring — the nth roots of a complex number w, and what happens when you raise
+   one of them to higher powers.
+   Notation policy: polar form is written r cis θ, and as the ordered pair (r, θ),
+   everywhere in the page and in this source. Euler's form is out of scope for this
+   course and must not appear. */
+(function(){
+"use strict";
+
+var svg      = document.getElementById("plane");
+var algBody  = document.getElementById("algBody");
+var algNote  = document.getElementById("algNote");
+var readout  = document.getElementById("readout");
+var nSlider  = document.getElementById("nSlider");
+var nOut     = document.getElementById("nOut");
+var legend   = document.getElementById("legend");
+var zoomIn   = document.getElementById("zoomIn");
+var zoomOut  = document.getElementById("zoomOut");
+var zoomFit  = document.getElementById("zoomFit");
+var zoomLab  = document.getElementById("zoomLab");
+var wRe      = document.getElementById("wRe");
+var wIm      = document.getElementById("wIm");
+var rootChips= document.getElementById("rootChips");
+var track    = document.getElementById("track");
+var walkEq   = document.getElementById("walkEq");
+var walkDec  = document.getElementById("walkDecomp");
+var puBack   = document.getElementById("puBack");
+var puNext   = document.getElementById("puNext");
+var puPlay   = document.getElementById("puPlay");
+var puReset  = document.getElementById("puReset");
+
+var SIZE = 560, CX = 280, CY = 280, TAU = Math.PI * 2, MINUS = "−";
+var SUBD = "₀₁₂₃₄₅₆₇₈₉";
+var SUPD = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+var ZOOM_MIN = 0.05, ZOOM_MAX = 500;
+
+var st = { wx:1, wy:0, n:3, half:2, sel:null, pow:0, hover:null,
+           timer:null, arcs:false, arcTimer:null, ready:false };
+var dragging = false;
+
+/* ---------- coordinates ---------- */
+function scale(){ return (SIZE/2 - 8) / st.half; }
+function sx(x){ return CX + x*scale(); }
+function sy(y){ return CY - y*scale(); }
+/* zoom is continuous, so the grid picks its own step off a 1-2-5 ladder,
+   aiming for about eight lines across the view */
+function niceStep(target){
+  var p10 = Math.pow(10, Math.floor(Math.log(target)/Math.LN10));
+  var m = target / p10;
+  return (m < 1.5 ? 1 : (m < 3.5 ? 2 : (m < 7.5 ? 5 : 10))) * p10;
+}
+function gridStep(){ return niceStep(st.half / 4); }
+/* the view half-width that comfortably holds a point at radius r */
+function fitHalf(r){
+  if (!(r > 1e-9)) return 2;
+  var need = r / 0.88;
+  var p10 = Math.pow(10, Math.floor(Math.log(need)/Math.LN10));
+  var cands = [1, 2, 2.5, 5, 10];
+  for (var i = 0; i < cands.length; i++){
+    if (cands[i]*p10 >= need) return cands[i]*p10;
+  }
+  return 10*p10;
+}
+function setZoom(h){
+  st.half = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, h));
+  flashArcs();
+  render();
+}
+
+/* ---------- formatting ---------- */
+function fix(x){
+  if (!isFinite(x)) return "?";
+  if (Math.abs(x) < 5e-4) return "0";
+  var v = Number(x.toPrecision(3));
+  if (Math.abs(v) < 5e-4) return "0";
+  return String(v).replace("-", MINUS);
+}
+function gcd(a,b){ while(b){ var t = a % b; a = b; b = t; } return a; }
+function piAngle(theta){
+  if (Math.abs(theta) < 1e-12) return "0";
+  var t = theta / Math.PI;
+  /* denominators reach 4n for a w on the half-integer lattice, so allow room past n = 12 */
+  for (var q = 1; q <= 144; q++){
+    var p = Math.round(t*q);
+    if (p !== 0 && Math.abs(t*q - p) < 1e-9){
+      var g = gcd(Math.abs(p), q), P = p/g, Q = q/g;
+      var mag = (Math.abs(P) === 1 ? "π" : Math.abs(P) + "π");
+      return (P < 0 ? MINUS : "") + mag + (Q === 1 ? "" : "/" + Q);
+    }
+  }
+  return fix(theta) + " rad";
+}
+function rectStr(x, y){
+  var a = fix(x), b = fix(Math.abs(y));
+  if (b === "0") return a;
+  var bp = (b === "1" ? "" : b) + "i";
+  if (a === "0") return (y < 0 ? MINUS : "") + bp;
+  return a + (y < 0 ? " " + MINUS + " " : " + ") + bp;
+}
+/* --- exact moduli -----------------------------------------------------------
+   Every modulus on screen is a power of |w|: after m steps it is |w|^(m/n), and a
+   root is the m = 1 case. Writing that as a decimal throws away the fact a student
+   most wants to see, so it is rendered as the simplest exact radical instead.
+   Let Q = |w|^2, an integer whenever w sits on the integer lattice. Then the modulus
+   is Q^(m/2n). Reducing that exponent and stripping any perfect power out of Q gives
+   the simplest form: |w| = 8 with n = 3 comes out as 2, not the 6th root of 64, and
+   |w| = 2 with n = 2 as root 2, not the 4th root of 4. When Q is not an integer there
+   is no clean radical to show, and the decimal stands. */
+function radHTML(idx, radicand){
+  var ix = (String(idx) === "2") ? "" : "<sup>" + idx + "</sup>";
+  return '<span class="rdcl">' + ix + "&radic;" +
+         '<span class="rc">' + radicand + "</span></span>";
+}
+function asInt(x){
+  var r = Math.round(x);
+  return Math.abs(x - r) < 1e-9 ? r : null;
+}
+function modulusExact(m){
+  var dec = fix(Math.pow(rho(), m));
+  if (isZero()) return { html: "0", exact: true };
+  var Q = asInt(st.wx*st.wx + st.wy*st.wy);
+  if (Q === null || Q < 1) return { html: dec, exact: false };
+  if (Q === 1) return { html: "1", exact: true };
+  /* Q = t^k, k as large as possible */
+  var t = Q, k = 1, kk, cand;
+  for (kk = 20; kk >= 2; kk--){
+    cand = asInt(Math.pow(Q, 1/kk));
+    if (cand !== null && cand >= 2 && Math.round(Math.pow(cand, kk)) === Q){
+      t = cand; k = kk; break;
+    }
+  }
+  var num = m, den = 2*st.n, g = gcd(num, den);
+  num /= g; den /= g;
+  num *= k;
+  g = gcd(num, den);
+  num /= g; den /= g;
+  var rc = Math.pow(t, num);
+  if (!isFinite(rc) || rc > 1e12) return { html: dec, exact: false };
+  rc = Math.round(rc);
+  return { html: (den === 1) ? String(rc) : radHTML(den, String(rc)), exact: true };
+}
+function modulusHTML(m){
+  var r = modulusExact(m);
+  return r.exact ? r.html
+                 : '<span class="approx">&asymp;</span>&thinsp;' + r.html;
+}
+/* the decimal alongside an exact radical; nothing to add to an integer, and nothing
+   to add to a value already shown as approximate */
+function approxHTML(m){
+  var r = modulusExact(m);
+  if (!r.exact || r.html.indexOf("rdcl") < 0) return "";
+  return ' <span class="approx">&asymp; ' + fix(Math.pow(rho(), m)) + "</span>";
+}
+function cisHTML(m, th){ return modulusHTML(m) + " cis " + piAngle(th); }
+function pairHTML(m, th){ return "(" + modulusHTML(m) + ", " + piAngle(th) + ")"; }
+var NTH_ROOT_W = null;   /* set lazily: the symbolic nth root of |w| */
+function nthRootW(){
+  if (NTH_ROOT_W === null) NTH_ROOT_W = radHTML("<i>n</i>", "|w|");
+  return NTH_ROOT_W;
+}
+function sub(k){ return String(k).split("").map(function(d){ return SUBD[+d]; }).join(""); }
+function supr(k){ return String(k).split("").map(function(d){ return SUPD[+d]; }).join(""); }
+function zName(k){ return "z" + sub(k + 1); }   /* roots are z1 … zn */
+
+/* ---------- model ---------- */
+function modulus(){ return Math.hypot(st.wx, st.wy); }
+function argW(){ return Math.atan2(st.wy, st.wx); }
+function isZero(){ return modulus() < 1e-9; }
+function rho(){ var r = modulus(); return r === 0 ? 0 : Math.pow(r, 1/st.n); }
+function rootAngle(k){ return (argW() + TAU*k) / st.n; }
+function rootPt(k){
+  var R = rho(), a = rootAngle(k);
+  return { x: R*Math.cos(a), y: R*Math.sin(a), r: R, a: a };
+}
+function powerPt(k, m){
+  var R = Math.pow(rho(), m), a = rootAngle(k) * m;
+  return { x: R*Math.cos(a), y: R*Math.sin(a), r: R, a: a };
+}
+
+/* ---------- state changes ---------- */
+function snapVal(v){
+  var step = gridStep(), mag = step/2;
+  var nearest = Math.round(v/mag)*mag;
+  if (Math.abs(v - nearest) < mag*0.28) return nearest;
+  var fine = step/20;
+  return Math.round(v/fine)*fine;
+}
+function flashArcs(){
+  if (!st.ready) return;
+  st.arcs = true;
+  if (st.arcTimer) clearTimeout(st.arcTimer);
+  st.arcTimer = setTimeout(function(){
+    st.arcTimer = null; st.arcs = false; render();
+  }, 1200);
+}
+function setW(x, y){
+  if (!isFinite(x) || !isFinite(y)) return;   /* never let a bad pointer poison the state */
+  var r = Math.hypot(x, y), lim = st.half * 0.97;
+  if (r > lim && r > 0){ x = x*lim/r; y = y*lim/r; }
+  st.wx = x; st.wy = y;
+  if (isZero()){ st.wx = 0; st.wy = 0; }
+  clampPow();
+  flashArcs();
+  render();
+}
+/* typed input is exact and may need a wider view than the one on screen */
+function setWTyped(x, y){
+  if (!isFinite(x) || !isFinite(y)) return;
+  st.half = fitHalf(Math.hypot(x, y));
+  setW(x, y);
+}
+function clampPow(){
+  if (st.sel !== null && st.sel >= st.n){ st.sel = null; st.pow = 0; }
+  if (st.pow > st.n) st.pow = st.n;
+}
+function select(k){ st.sel = k; st.pow = 1; stopPlay(); render(); }
+
+/* ---------- svg helpers ---------- */
+function arcD(unitR, from, to){
+  var R = unitR * scale();
+  var x0 = sx(unitR*Math.cos(from)), y0 = sy(unitR*Math.sin(from));
+  var x1 = sx(unitR*Math.cos(to)),   y1 = sy(unitR*Math.sin(to));
+  var d = to - from;
+  var large = Math.abs(d) > Math.PI ? 1 : 0;
+  var sweep = d > 0 ? 0 : 1;   /* screen y is flipped, so ccw in math is sweep 0 */
+  return "M " + x0 + " " + y0 + " A " + R + " " + R + " 0 " + large + " " + sweep +
+         " " + x1 + " " + y1;
+}
+/* an arrow from the origin to (x, y), stopped short so the head meets the dot */
+var ARROWS = [["vecw", "#c2334d"], ["vecr", "#1d4ed8"], ["vecr-sel", "#6d28d9"],
+              ["vecp", "#6d28d9"], ["vecp-prev", "#a78bfa"]];
+function markerId(cls){ return "ah-" + cls.replace(/\s+/g, "-"); }
+function vector(x, y, cls){
+  var L = Math.hypot(x, y) * scale();
+  if (L < 10) return "";
+  var f = (L - 8) / L;
+  return '<line class="' + cls + '" x1="' + CX + '" y1="' + CY + '" x2="' + sx(x*f) +
+         '" y2="' + sy(y*f) + '" marker-end="url(#' + markerId(cls) + ')"/>';
+}
+function markers(){
+  var out = ["<defs>"];
+  ARROWS.forEach(function(d){
+    out.push('<marker id="ah-' + d[0] + '" viewBox="0 0 10 10" refX="9.5" refY="5" ' +
+             'markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">' +
+             '<path d="M0.5,1 L10,5 L0.5,9 z" fill="' + d[1] + '"/></marker>');
+  });
+  out.push("</defs>");
+  return out.join("");
+}
+function labelAt(x, y, dirAng, pxOut, cls, text, extra, anchor){
+  var px = sx(x) + pxOut*Math.cos(dirAng);
+  var py = sy(y) - pxOut*Math.sin(dirAng) + 4;
+  return '<text class="lbl ' + cls + '" x="' + px + '" y="' + py +
+         '" text-anchor="' + (anchor || "middle") + '"' + (extra || "") + ">" +
+         text + "</text>";
+}
+
+/* --- label placement ---------------------------------------------------------
+   Every annotation is a small box on a crowded picture, so labels are collected
+   rather than drawn, then placed in priority order: each one takes the first
+   candidate offset that clears everything already placed. Optional labels that
+   clear nothing are dropped instead of overlapping. Axis ticks are placed first,
+   as fixed obstacles. Widths are measured once per (text, class) and cached, since
+   an estimate that runs narrow makes the placer believe a label clears when it
+   does not. */
+function textW(text, size){        /* fallback only, if getBBox is unavailable */
+  var u = 0;
+  for (var i = 0; i < text.length; i++){
+    var c = text.charAt(i);
+    if (SUBD.indexOf(c) >= 0 || SUPD.indexOf(c) >= 0) u += 0.42;
+    else if (c === " ") u += 0.30;
+    else if ("il|.,/1".indexOf(c) >= 0) u += 0.36;
+    else u += 0.62;
+  }
+  return u * size;
+}
+var measCache = {};
+function measure(text, clsFull, size){
+  var key = clsFull + "|" + size + "|" + text;
+  if (measCache[key]) return measCache[key];
+  var m = null;
+  var probe = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  probe.setAttribute("class", clsFull);
+  probe.setAttribute("x", "-9999");
+  probe.setAttribute("y", "-9999");
+  probe.textContent = text;
+  svg.appendChild(probe);
+  try {
+    var b = probe.getBBox();
+    if (b && b.width) m = { w: b.width, h: b.height, dy: b.y + 9999 };
+  } catch (err) { m = null; }
+  svg.removeChild(probe);
+  if (!m) m = { w: textW(text, size), h: size*1.05, dy: -size*0.80 };
+  measCache[key] = m;
+  return m;
+}
+function boxAt(cx, baseline, text, clsFull, size, anchor){
+  var m = measure(text, clsFull, size);
+  var x0 = (anchor === "start") ? cx : cx - m.w/2;
+  return { x: x0 - 2, y: baseline + m.dy - 2, w: m.w + 4, h: m.h + 4 };
+}
+function hits(a, b){
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+/* candidate offsets, tried in order: [rotation of the outward direction, extra px] */
+var CANDS = [[0,0],[0.5,0],[-0.5,0],[0,15],[0.5,15],[-0.5,15],[1.0,0],[-1.0,0],[0,30],
+             [0.3,8],[-0.3,8],[1.0,15],[-1.0,15],[1.5,0],[-1.5,0],[0.8,30],[-0.8,30],
+             [1.5,15],[-1.5,15],[0,45]];
+function boxFor(L, dir, off){
+  return boxAt(sx(L.x) + off*Math.cos(dir), sy(L.y) - off*Math.sin(dir) + 4,
+               L.text, "lbl " + L.cls, L.size, L.anchor);
+}
+function placeLabels(list, obstacles){
+  var out = [];
+  list.forEach(function(L){
+    var pick = null;
+    for (var i = 0; i < CANDS.length; i++){
+      var dir = L.dir + CANDS[i][0], off = L.out + CANDS[i][1];
+      var b = boxFor(L, dir, off), free = true;
+      for (var j = 0; j < obstacles.length; j++){
+        if (hits(b, obstacles[j])){ free = false; break; }
+      }
+      if (free){ b.dir = dir; b.out = off; pick = b; break; }
+    }
+    if (!pick){
+      if (!L.required) return;
+      pick = boxFor(L, L.dir, L.out);
+      pick.dir = L.dir; pick.out = L.out;
+    }
+    obstacles.push(pick);
+    out.push(labelAt(L.x, L.y, pick.dir, pick.out, L.cls, L.text, L.extra, L.anchor));
+  });
+  return out;
+}
+function mkLabel(x, y, dir, out, cls, text, size, required, extra, anchor){
+  return { x:x, y:y, dir:dir, out:out, cls:cls, text:text, size:size,
+           required:required, extra:extra || "", anchor:anchor || "middle" };
+}
+function polarMk(unitR, ang, out, cls, text, size, required, extra, anchor){
+  return mkLabel(unitR*Math.cos(ang), unitR*Math.sin(ang), ang, out, cls, text,
+                 size, required, extra, anchor);
+}
+
+/* ---------- geometry panel ---------- */
+function drawPlane(){
+  var S = scale(), step = gridStep(), out = [markers()], k, g, j, p, m;
+  var obstacles = [], lW = [], lTurn = [], lPowNow = [], lRoots = [], lPow = [], lArcs = [];
+
+  for (g = step; g <= st.half + 1e-9; g += step){
+    [g, -g].forEach(function(v){
+      out.push('<line class="gridline" x1="' + sx(v) + '" y1="0" x2="' + sx(v) +
+               '" y2="' + SIZE + '"/>');
+      out.push('<line class="gridline" x1="0" y1="' + sy(v) + '" x2="' + SIZE +
+               '" y2="' + sy(v) + '"/>');
+    });
+  }
+  out.push('<line class="axis" x1="0" y1="' + CY + '" x2="' + SIZE + '" y2="' + CY + '"/>');
+  out.push('<line class="axis" x1="' + CX + '" y1="0" x2="' + CX + '" y2="' + SIZE + '"/>');
+
+  var ls = step < 1 ? step*2 : step;
+  for (g = ls; g <= st.half - ls*0.35; g += ls){
+    var lab = fix(g), labI = (g === 1 ? "" : lab) + "i";
+    out.push('<text class="tick" x="' + sx(g) + '" y="' + (CY+14) +
+             '" text-anchor="middle">' + lab + "</text>");
+    out.push('<text class="tick" x="' + sx(-g) + '" y="' + (CY+14) +
+             '" text-anchor="middle">' + MINUS + lab + "</text>");
+    out.push('<text class="tick" x="' + (CX+6) + '" y="' + (sy(g)+3.5) + '">' + labI + "</text>");
+    out.push('<text class="tick" x="' + (CX+6) + '" y="' + (sy(-g)+3.5) + '">' +
+             MINUS + labI + "</text>");
+    obstacles.push(boxAt(sx(g),  CY+14, lab, "tick", 10.5, "middle"));
+    obstacles.push(boxAt(sx(-g), CY+14, MINUS + lab, "tick", 10.5, "middle"));
+    obstacles.push(boxAt(CX+6, sy(g)+3.5,  labI, "tick", 10.5, "start"));
+    obstacles.push(boxAt(CX+6, sy(-g)+3.5, MINUS + labI, "tick", 10.5, "start"));
+  }
+
+  var R = rho(), th = argW(), zero = isZero();
+  /* the nth power lands exactly on w, so its label already names the point */
+  var finalOnW = !zero && st.sel !== null && st.pow === st.n;
+  /* index of a root sitting exactly on w, or -1; happens for every n when |w| = 1 */
+  var rootOnW = -1;
+  if (!zero){
+    for (k = 0; k < st.n; k++){
+      p = rootPt(k);
+      if (Math.hypot(p.x - st.wx, p.y - st.wy)*S < 4){ rootOnW = k; break; }
+    }
+  }
+  function onSomeRoot(q){
+    for (var c = 0; c < st.n; c++){
+      var rp = rootPt(c);
+      if (Math.hypot(q.x - rp.x, q.y - rp.y)*S < 4) return true;
+    }
+    return false;
+  }
+
+  if (!zero){
+    out.push('<circle class="rootc" cx="' + CX + '" cy="' + CY + '" r="' + (R*S) + '"/>');
+  }
+
+  /* Arc families, both starting from the positive real axis: one arc of (arg w)/n,
+     then a chain of n arcs of 2 pi / n continuing from it, so each arc of the chain
+     spans one root to the next. Shown while w is moving, unless pinned. */
+  if (!zero && st.arcs){
+    var a1r = Math.min(0.40*st.half, 0.44*R);
+    var a2r = Math.min(0.58*st.half, 0.68*R);
+    if (Math.abs(th) > 1e-9){
+      out.push('<path class="arc1" d="' + arcD(a1r, 0, th/st.n) + '"/>');
+      lArcs.push(polarMk(a1r, th/(2*st.n), 15, "a1", "(arg w)/" + st.n, 12, false));
+    }
+    var gap = Math.min(0.05, (TAU/st.n)*0.10);
+    for (j = 0; j < st.n; j++){
+      var b0 = th/st.n + j*TAU/st.n, b1 = b0 + TAU/st.n;
+      out.push('<path class="arc2" d="' + arcD(a2r, b0 + gap, b1 - gap) +
+               '" opacity="' + (j % 2 ? 0.55 : 1) + '"/>');
+      out.push('<line class="arctick" x1="' + sx(a2r*0.93*Math.cos(b0)) +
+               '" y1="' + sy(a2r*0.93*Math.sin(b0)) +
+               '" x2="' + sx(a2r*1.07*Math.cos(b0)) +
+               '" y2="' + sy(a2r*1.07*Math.sin(b0)) + '"/>');
+    }
+    lArcs.push(polarMk(a2r, th/st.n + TAU/(2*st.n), 15, "a2", "2π/" + st.n, 12, false));
+  }
+
+  /* the walk: the spiral through the powers, the angle turned so far, and the vectors */
+  if (!zero && st.sel !== null && st.pow >= 1){
+    var kk = st.sel, phi = rootAngle(kk);
+
+    /* Angle turned so far, as one arc from the positive real axis out to m*phi. It
+       drifts outward with the total turn, so a second time around sits outside the
+       first instead of retracing it. */
+    var turned = phi*st.pow;
+    var turnR0 = Math.min(0.30*st.half, 0.20*R);
+    var turns = Math.max(1, Math.abs(turned)/TAU);
+    var drift = turnR0 * 0.55 / turns;
+    function turnPath(t0, t1){
+      var seg = [], steps = Math.max(8, Math.ceil(Math.abs(t1 - t0)/0.06));
+      for (var i = 0; i <= steps; i++){
+        var t = t0 + (t1 - t0)*i/steps;
+        var rr = turnR0 + drift*Math.abs(t)/TAU;
+        seg.push((i ? "L" : "M") + " " + sx(rr*Math.cos(t)) + " " + sy(rr*Math.sin(t)));
+      }
+      return seg.join(" ");
+    }
+    if (Math.abs(turned) > 1e-9){
+      if (st.pow > 1) out.push('<path class="turn" d="' + turnPath(0, phi*(st.pow-1)) + '"/>');
+      out.push('<path class="turn now" d="' + turnPath(phi*(st.pow-1), turned) + '"/>');
+      var tr = turnR0 + drift*Math.abs(turned)/TAU;
+      lTurn.push(polarMk(tr, turned, 16, "turnl", piAngle(turned), 12.5, true));
+    }
+
+    if (st.pow > 1){
+      var segs = [], nseg = 24*st.pow;
+      for (var i2 = 0; i2 <= nseg; i2++){
+        var t2 = 1 + (st.pow - 1)*i2/nseg;
+        var rr2 = Math.pow(R, t2), aa2 = phi*t2;
+        segs.push((i2 ? "L" : "M") + " " + sx(rr2*Math.cos(aa2)) + " " + sy(rr2*Math.sin(aa2)));
+      }
+      out.push('<path class="spiral" d="' + segs.join(" ") + '"/>');
+      p = powerPt(kk, st.pow - 1);
+      out.push(vector(p.x, p.y, "vecp prev"));
+    }
+    p = powerPt(kk, st.pow);
+    out.push(vector(p.x, p.y, "vecp"));
+
+    for (m = 1; m <= st.pow; m++){
+      p = powerPt(kk, m);
+      out.push('<circle class="pw" cx="' + sx(p.x) + '" cy="' + sy(p.y) +
+               '" r="' + (m === st.pow ? 5.5 : 4) + '"/>');
+      if (m === st.n){
+        out.push('<circle class="pwring" cx="' + sx(p.x) + '" cy="' + sy(p.y) + '" r="10"/>');
+      }
+    }
+    /* Newest power first, so the current step always keeps its label. The first
+       power needs none: that point is the root, which carries its own label. */
+    for (m = st.pow; m >= 2; m--){
+      p = powerPt(kk, m);
+      var last = (m === st.n);
+      /* When |w| = 1 the powers of a root are the other roots, so the point already
+         carries a label; the walk panel still reports the step. */
+      if (onSomeRoot(p) && (!last || rootOnW >= 0)) continue;
+      var L = mkLabel(p.x, p.y, Math.atan2(p.y, p.x), last ? 14 : 16, "pwl",
+                      zName(kk) + supr(m) + (last ? " = w" : ""), 11.5,
+                      m === st.pow, "", last ? "start" : "middle");
+      if (m === st.pow) lPowNow.push(L); else lPow.push(L);
+    }
+  }
+
+  /* the roots, as vectors */
+  if (zero){
+    out.push('<circle class="rootpt" cx="' + CX + '" cy="' + CY + '" r="6.5"/>');
+    out.push('<text class="lbl zero" x="' + (CX+15) + '" y="' + (CY-15) +
+             '">0 is its own only nth root.</text>');
+  } else {
+    for (k = 0; k < st.n; k++){
+      p = rootPt(k);
+      out.push(vector(p.x, p.y, "vecr" + (st.sel === k ? " sel" : "")));
+    }
+    var perRoot = (TAU * R * S) / st.n;      /* circumference available to each label */
+    var labelAll = perRoot >= 26;
+    for (k = 0; k < st.n; k++){
+      p = rootPt(k);
+      out.push('<circle class="rootpt' + (st.sel === k ? " sel" : "") + '" data-k="' + k +
+               '" cx="' + sx(p.x) + '" cy="' + sy(p.y) + '" r="6"/>');
+      if (labelAll || st.sel === k || k === rootOnW){
+        lRoots.push(polarMk(p.r, p.a, 17, "root" + (st.sel === k ? " sel" : ""),
+                 zName(k) + (k === rootOnW ? " = w" : ""), 12, true,
+                 ' data-k="' + k + '"'));
+      }
+    }
+  }
+
+  /* w, as a vector */
+  if (!zero) out.push(vector(st.wx, st.wy, "vecw"));
+  out.push('<circle class="wpt" cx="' + sx(st.wx) + '" cy="' + sy(st.wy) + '" r="7"/>');
+  if (zero){
+    out.push('<text class="lbl wl" x="' + (CX+14) + '" y="' + (CY+20) + '">w = 0</text>');
+  } else if (!finalOnW && rootOnW < 0 &&
+             Math.abs(st.wx) < st.half*1.02 && Math.abs(st.wy) < st.half*1.02){
+    lW.push(polarMk(modulus(), argW(), 18, "wl", "w", 13, true));
+  }
+
+  /* Hit targets last, so a point is easy to grab, and w's goes on top of the roots':
+     when w sits exactly on a root the root's target used to swallow the press, which
+     selected the root and left w undraggable. w now wins the inner 12px and the root
+     keeps the surrounding ring, so both stay reachable. */
+  if (!zero){
+    for (k = 0; k < st.n; k++){
+      p = rootPt(k);
+      out.push('<circle class="hit" data-k="' + k + '" cx="' + sx(p.x) + '" cy="' +
+               sy(p.y) + '" r="15"/>');
+    }
+  }
+  out.push('<circle class="whit" cx="' + sx(st.wx) + '" cy="' + sy(st.wy) + '" r="12"/>');
+
+  out = out.concat(placeLabels(
+    lW.concat(lTurn, lPowNow, lRoots, lPow, lArcs), obstacles));
+
+  svg.innerHTML = out.join("");
+}
+
+/* ---------- algebra panel ---------- */
+function drawTable(){
+  var rows = [], k, p;
+  if (isZero()){
+    rows.push('<tr><td class="k">&mdash;</td><td class="pair">(0, undefined)</td>' +
+              '<td class="pol">0</td><td class="rec">0</td></tr>');
+    algNote.innerHTML = "0 is its own only <i>n</i>th root: zⁿ = 0 has the single " +
+      "solution z = 0, repeated <i>n</i> times. There is no circle and no angle to divide.";
+  } else {
+    for (k = 0; k < st.n; k++){
+      p = rootPt(k);
+      rows.push('<tr data-k="' + k + '"' + (st.sel === k ? ' class="sel"' : "") + ">" +
+        '<td class="k">' + (k + 1) + "</td>" +
+        '<td class="pair">' + pairHTML(1, p.a) + "</td>" +
+        '<td class="pol">' + cisHTML(1, p.a) + "</td>" +
+        '<td class="rec">' + rectStr(p.x, p.y) + "</td></tr>");
+    }
+    algNote.innerHTML = "Every root has modulus " + nthRootW() + " = " +
+      modulusHTML(1) + approxHTML(1) +
+      "; consecutive angles differ by 2π/<i>n</i> = " + piAngle(TAU/st.n) + ".";
+  }
+  algBody.innerHTML = rows.join("");
+}
+
+function drawLegend(){
+  var items = [["#c2334d", "w"], ["#1d4ed8", "roots"]];
+  if (!isZero() && st.sel !== null && st.pow >= 1){
+    items.push(["#6d28d9", zName(st.sel) + supr(Math.max(1, st.pow))]);
+  }
+  items.push(["#dda45f", "θ of z" + sub(1)],
+             ["#79c3a6", piAngle(TAU/st.n) + " between roots"]);
+  legend.innerHTML = items.map(function(it){
+    return '<span><i class="sw" style="background:' + it[0] + '"></i>' + it[1] + "</span>";
+  }).join("");
+}
+
+function drawReadout(){
+  var items = [
+    "w = <b>" + rectStr(st.wx, st.wy) + "</b>",
+    "|w| = <b>" + modulusHTML(st.n) + "</b>" + approxHTML(st.n),
+    "arg w = <b>" + (isZero() ? "undefined" : piAngle(argW())) + "</b>",
+    nthRootW() + " = <b>" + modulusHTML(1) + "</b>" + approxHTML(1),
+    "2π/<i>n</i> = <b>" + piAngle(TAU/st.n) + "</b>"
+  ];
+  readout.innerHTML = "<span>" + items.join("</span><span>") + "</span>";
+  if (document.activeElement !== wRe) wRe.value = String(Number(st.wx.toFixed(4)));
+  if (document.activeElement !== wIm) wIm.value = String(Number(st.wy.toFixed(4)));
+}
+
+/* ---------- the walk ---------- */
+function drawWalk(){
+  var zero = isZero(), none = st.sel === null, k, i;
+
+  var chips = [];
+  if (!zero){
+    for (k = 0; k < st.n; k++){
+      chips.push('<button class="chip' + (st.sel === k ? " on" : "") + '" data-k="' + k +
+                 '">' + zName(k) + "</button>");
+    }
+  }
+  rootChips.innerHTML = chips.join("");
+
+  var cells = [];
+  if (!zero){
+    for (i = 1; i <= st.n; i++){
+      cells.push('<span class="cell' + (i <= st.pow ? " done" : "") +
+                 (i === st.pow ? " now" : "") + '">' + i + "</span>");
+    }
+  }
+  track.innerHTML = cells.join("");
+
+  puBack.disabled  = zero || none || st.pow <= 1;
+  puNext.disabled  = zero || none || st.pow >= st.n;
+  puPlay.disabled  = zero || none;
+  puReset.disabled = zero || none;
+
+  if (zero){
+    stopPlay();
+    walkEq.innerHTML = '<span class="walk-hint">Not available at w = 0: every power ' +
+      "of 0 is 0, so no root ever leaves the origin.</span>";
+    walkDec.innerHTML = "";
+    return;
+  }
+  if (none){
+    walkEq.innerHTML = '<span class="walk-hint">Choose a root, or click one in the ' +
+      "plane or the table.</span>";
+    walkDec.innerHTML = "";
+    return;
+  }
+
+  var m = Math.max(1, st.pow), p = powerPt(st.sel, m);
+  walkEq.innerHTML =
+    zName(st.sel) + supr(m) + " = <b>" + pairHTML(m, p.a) + "</b> = <b>" +
+    cisHTML(m, p.a) + "</b> = <b>" + rectStr(p.x, p.y) + "</b>" +
+    (m === st.n ? ' <span class="landed">= w</span>' : "");
+
+  if (m === 1){
+    walkDec.innerHTML = '<span class="op">each step</span>&times; ' + modulusHTML(1) +
+      " and + " + piAngle(rootAngle(st.sel));
+  } else {
+    var q = powerPt(st.sel, m - 1);
+    walkDec.innerHTML =
+      '<span class="op">stretch</span>' + modulusHTML(m - 1) + " &times; " +
+      modulusHTML(1) + " = <b>" + modulusHTML(m) + "</b><br>" +
+      '<span class="op">turn</span>' + piAngle(q.a) + " + " +
+      piAngle(rootAngle(st.sel)) + " = <b>" + piAngle(p.a) + "</b>";
+  }
+}
+
+/* ---------- highlight sync ---------- */
+function applyHighlight(){
+  var h = st.hover;
+  function mark(nodes){
+    Array.prototype.forEach.call(nodes, function(el){
+      el.classList.toggle("hl", h !== null && +el.getAttribute("data-k") === h);
+    });
+  }
+  mark(svg.querySelectorAll("[data-k]"));
+  mark(algBody.querySelectorAll("tr[data-k]"));
+  mark(rootChips.querySelectorAll("[data-k]"));
+}
+function setHover(k){ if (k !== st.hover){ st.hover = k; applyHighlight(); } }
+
+/* ---------- render ---------- */
+function render(){
+  nOut.textContent = st.n;
+  zoomLab.textContent = "±" + fix(st.half);
+  drawReadout();
+  drawLegend();
+  drawPlane();
+  drawTable();
+  drawWalk();
+  applyHighlight();
+}
+
+/* ---------- play ---------- */
+function startPlay(){
+  if (st.sel === null || isZero()) return;
+  if (st.pow >= st.n || st.pow < 1) st.pow = 1;
+  puPlay.textContent = "Pause";
+  puPlay.classList.add("on");
+  st.timer = setInterval(function(){
+    if (st.pow >= st.n){ stopPlay(); return; }
+    st.pow++;
+    render();
+  }, 850);
+  render();
+}
+function stopPlay(){
+  if (st.timer){ clearInterval(st.timer); st.timer = null; }
+  puPlay.textContent = "Play";
+  puPlay.classList.remove("on");
+}
+
+/* ---------- events ---------- */
+nSlider.addEventListener("input", function(){
+  st.n = +nSlider.value; clampPow(); stopPlay(); flashArcs(); render();
+});
+zoomIn.addEventListener("click", function(){ setZoom(st.half/1.4); });
+zoomOut.addEventListener("click", function(){ setZoom(st.half*1.4); });
+zoomFit.addEventListener("click", function(){ setZoom(fitHalf(modulus())); });
+svg.addEventListener("wheel", function(e){
+  e.preventDefault();
+  setZoom(st.half * (e.deltaY > 0 ? 1.12 : 1/1.12));
+}, { passive: false });
+
+function readTyped(){
+  var x = parseFloat(wRe.value), y = parseFloat(wIm.value);
+  if (!isFinite(x)) x = 0;
+  if (!isFinite(y)) y = 0;
+  setWTyped(x, y);
+}
+wRe.addEventListener("input", readTyped);
+wIm.addEventListener("input", readTyped);
+wRe.addEventListener("change", readTyped);
+wIm.addEventListener("change", readTyped);
+
+Array.prototype.forEach.call(document.querySelectorAll("[data-w]"), function(b){
+  b.addEventListener("click", function(){
+    var parts = b.getAttribute("data-w").split(","), x = +parts[0], y = +parts[1];
+    st.sel = null; st.pow = 0; stopPlay();
+    setWTyped(x, y);
+  });
+});
+
+function planePoint(e){
+  var r = svg.getBoundingClientRect();
+  if (!r.width || !r.height) return null;     /* not laid out yet: ignore the event */
+  var px = (e.clientX - r.left) * SIZE / r.width;
+  var py = (e.clientY - r.top)  * SIZE / r.height;
+  return { x: (px - CX)/scale(), y: (CY - py)/scale() };
+}
+svg.addEventListener("pointerdown", function(e){
+  var hit = e.target.closest ? e.target.closest("[data-k]") : null;
+  if (hit){ select(+hit.getAttribute("data-k")); return; }
+  dragging = true;
+  try { svg.setPointerCapture(e.pointerId); } catch(err){}
+  var p = planePoint(e);
+  if (p) setW(snapVal(p.x), snapVal(p.y));
+});
+svg.addEventListener("pointermove", function(e){
+  if (dragging){
+    var p = planePoint(e);
+    if (p) setW(snapVal(p.x), snapVal(p.y));
+    return;
+  }
+  var hit = e.target.closest ? e.target.closest("[data-k]") : null;
+  setHover(hit ? +hit.getAttribute("data-k") : null);
+});
+svg.addEventListener("pointerup", function(e){
+  dragging = false;
+  try { svg.releasePointerCapture(e.pointerId); } catch(err){}
+});
+svg.addEventListener("pointercancel", function(){ dragging = false; });
+svg.addEventListener("pointerleave", function(){ if (!dragging) setHover(null); });
+
+algBody.addEventListener("mouseover", function(e){
+  var tr = e.target.closest("tr[data-k]");
+  setHover(tr ? +tr.getAttribute("data-k") : null);
+});
+algBody.addEventListener("mouseleave", function(){ setHover(null); });
+algBody.addEventListener("click", function(e){
+  var tr = e.target.closest("tr[data-k]");
+  if (tr) select(+tr.getAttribute("data-k"));
+});
+
+rootChips.addEventListener("mouseover", function(e){
+  var b = e.target.closest("[data-k]");
+  setHover(b ? +b.getAttribute("data-k") : null);
+});
+rootChips.addEventListener("mouseleave", function(){ setHover(null); });
+rootChips.addEventListener("click", function(e){
+  var b = e.target.closest("[data-k]");
+  if (b) select(+b.getAttribute("data-k"));
+});
+
+puNext.addEventListener("click", function(){
+  if (st.sel !== null && st.pow < st.n){ st.pow++; stopPlay(); render(); }
+});
+puBack.addEventListener("click", function(){
+  if (st.sel !== null && st.pow > 1){ st.pow--; stopPlay(); render(); }
+});
+puReset.addEventListener("click", function(){
+  stopPlay(); st.pow = st.sel === null ? 0 : 1; render();
+});
+puPlay.addEventListener("click", function(){
+  if (st.timer) { stopPlay(); render(); } else { startPlay(); }
+});
+document.addEventListener("keydown", function(e){
+  var t = e.target.tagName;
+  if (t === "INPUT" || t === "SELECT" || t === "TEXTAREA") return;
+  if (e.key === "ArrowRight"){ puNext.click(); e.preventDefault(); }
+  if (e.key === "ArrowLeft"){ puBack.click(); e.preventDefault(); }
+  if (e.key === "+" || e.key === "="){ zoomIn.click(); e.preventDefault(); }
+  if (e.key === "-" || e.key === "_"){ zoomOut.click(); e.preventDefault(); }
+});
+
+/* ---------- init: the cube roots of 1, with a root that actually moves ----------
+   z1 = 1 for w = 1, and every power of 1 is 1, so the second root is preselected. */
+st.half = 2;
+st.n = 3;
+nSlider.value = "3";
+stopPlay();
+setW(1, 0);
+st.sel = 1;
+st.pow = 1;
+st.arcs = false;
+if (st.arcTimer){ clearTimeout(st.arcTimer); st.arcTimer = null; }
+st.ready = true;
+render();
+})();
+</script>
+</body>
+</html>

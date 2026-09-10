@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Course Applets</title>
+<style>
+:root{--ink:#191c21;--dim:#5b6470;--faint:#8b95a4;--line:#dde3ea;--blue:#1d4ed8}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:44rem;margin:0 auto;padding:44px 20px 60px}
+h1{font-size:23px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--dim);font-size:14.5px;margin:0 0 28px}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);
+  font-weight:600;margin:0 0 10px}
+ul{list-style:none;padding:0;margin:0}
+li{border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
+a.card{display:block;padding:13px 15px;text-decoration:none;color:inherit}
+a.card:hover{background:#f7f9fc}
+a.card:hover .t{text-decoration:underline}
+.t{font-weight:600;color:var(--blue);font-size:16px}
+.d{color:var(--dim);font-size:14px;margin-top:3px}
+footer{margin-top:32px;color:var(--faint);font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Course Applets</h1>
+  <p class="sub">Interactive tools for Proshanto Mukherji's math courses at
+  The Cambridge School of Weston. Each one opens in the browser, with nothing to
+  install and no sign-in.</p>
+
+  <h2>Analytic Geometry</h2>
+  <ul>
+    <li><a class="card" href="roots-ring/">
+      <div class="t">Roots Ring</div>
+      <div class="d">Unit 2 &middot; The <i>n</i>th roots of a complex number, and how
+      raising one root to the <i>n</i>th power stretches and turns you back to w.</div>
+    </a></li>
+  </ul>
+
+  <footer>
+  Polar form throughout these tools is r cis θ.
+  </footer>
+</div>
+</body>
+</html>
