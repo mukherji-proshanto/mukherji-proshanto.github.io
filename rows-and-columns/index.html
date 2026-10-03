@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ax = b: Rows and Columns in Motion</title>
+<style>
+  :root {
+    --text: #2C2C2B; --muted: #6F6C67; --canvas: #FFFFFF; --soft: #F9F8F7;
+    --surface2: #F0EFED; --border: #E6E5E3; --accent: #2783DE; --accent-soft: #E5F2FC;
+    --row1: #2783DE; --row2: #8E5BB5; --col1: #2F8A57; --col2: #D14B45;
+    --col1-soft: #E8F1EC; --col2-soft: #FCE9E7; --warn: #B5641F;
+    --vin: #2C2C2B; --vout: #C46F28; --grid0: #E6E5E3; --grid1: #BFD9F2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #FFFFFF; --muted: rgba(255,255,255,.65); --canvas: #191919; --soft: #202020;
+      --surface2: #2A2A29; --border: rgba(255,255,255,.20); --accent: #5E9FE8; --accent-soft: rgba(94,159,232,.12);
+      --row1: #5E9FE8; --row2: #BF8EDA; --col1: #72BC8F; --col2: #E97366;
+      --col1-soft: rgba(114,188,143,.12); --col2-soft: rgba(233,115,102,.12); --warn: #DE9255;
+      --vin: #FFFFFF; --vout: #DE9255; --grid0: #2E2E2D; --grid1: #2D4763;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 16px 20px 20px; }
+  .verdict { margin: 0 0 12px; min-height: 36px; }
+  .verdict .big { font-size: 24px; font-weight: 650; letter-spacing: -.01em; margin: 0; font-variant-numeric: tabular-nums; }
+  .verdict .small { font-size: 15px; color: var(--warn); margin: 2px 0 0; font-weight: 600; min-height: 0; }
+  .vx { color: var(--vin); } .vb { color: var(--vout); }
+  .top { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-start; margin-bottom: 12px; }
+  .sheet { display: grid; grid-template-columns: 58px 52px 52px 14px 52px 14px 66px auto; gap: 5px 5px; align-items: center; }
+  .sheet .h { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.2; }
+  .sheet .ch { font-size: 11.5px; font-weight: 650; text-align: center; line-height: 1.1; white-space: nowrap; cursor: default; }
+  .sheet .lab { font-size: 13px; font-weight: 650; white-space: nowrap; display: flex; align-items: center; gap: 3px; cursor: default; }
+  .glyph { width: 20px; height: 20px; display: block; margin: 0 auto; flex: none; }
+  .sheet .op { color: var(--muted); text-align: center; }
+  .sheet input { width: 100%; height: 40px; text-align: center; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--soft); border: 1px solid var(--border); border-radius: 8px; padding: 0 2px; font-variant-numeric: tabular-nums; }
+  .sheet input.k1 { background: var(--col1-soft); } .sheet input.k2 { background: var(--col2-soft); }
+  .sheet input.vec { background: var(--accent-soft); }
+  .sheet input[readonly] { background: transparent; border-color: transparent; font-weight: 650; }
+  .sheet input.outb[readonly] { color: var(--vout); }
+  .formula { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  @media (max-width: 480px) { .formula { display: none; } .sheet { grid-template-columns: 58px 52px 52px 14px 52px 14px 66px; } }
+  .side { display: flex; flex-direction: column; gap: 10px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .lbl-s { font-size: 12px; color: var(--muted); }
+  button { font: inherit; font-size: 13px; color: var(--text); background: var(--soft); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; min-height: 36px; cursor: pointer; }
+  button:hover { background: var(--surface2); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .motion { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; }
+  .read { font-size: 18px; font-weight: 650; margin: 8px 0 0; min-height: 26px; font-variant-numeric: tabular-nums; }
+  .stops { display: grid; grid-template-columns: repeat(2, 1fr); margin-left: 86px; font-size: 12px; color: var(--muted); text-align: center; }
+  .motion button { min-width: 76px; font-weight: 650; background: var(--accent); color: #fff; border-color: var(--accent); }
+  .motion input[type=range] { flex: 1; accent-color: var(--accent); }
+  .motion .end { font-weight: 650; font-size: 14px; }
+  .flat { min-height: 22px; font-size: 14px; color: var(--warn); font-weight: 600; margin: 8px 0 0; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 760px) { .panes { grid-template-columns: 1fr; } }
+  .pane { border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px 10px; min-width: 0; }
+  .pane h2 { font-size: 16px; margin: 0; font-weight: 650; }
+  .cap { font-size: 14px; color: var(--muted); margin: 2px 0 10px; min-height: 42px; font-variant-numeric: tabular-nums; }
+  svg.fig { width: 100%; height: auto; display: block; touch-action: none; user-select: none; cursor: move; border-radius: 8px; }
+  .handle { cursor: grab; } .handle:active { cursor: grabbing; }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .ctl input[type=range] { width: 160px; accent-color: var(--accent); }
+  .ctl input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+  .ctl button { min-height: 30px; padding: 3px 8px; font-size: 12px; }
+  .ctl label { display: inline-flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="verdict" aria-live="polite">
+    <p class="big" id="vbig"></p>
+    <p class="small" id="vsmall"></p>
+  </div>
+
+  <div class="top">
+    <div class="sheet" id="sheet">
+      <div></div>
+      <div class="ch" data-col="0" style="color:var(--col1)"><svg class="glyph" id="gc1" viewBox="0 0 22 22"></svg>column 1</div>
+      <div class="ch" data-col="1" style="color:var(--col2)"><svg class="glyph" id="gc2" viewBox="0 0 22 22"></svg>column 2</div>
+      <div></div><div class="h">x</div><div></div><div class="h">b</div><div></div>
+
+      <div class="lab" data-row="0" style="color:var(--row1)"><svg class="glyph" id="gr1" viewBox="0 0 22 22"></svg>Row 1</div>
+      <input id="a11" class="k1" aria-label="Row 1, column 1" type="number" step="0.5" data-row="0" data-col="0">
+      <input id="a12" class="k2" aria-label="Row 1, column 2" type="number" step="0.5" data-row="0" data-col="1">
+      <div class="op">·</div>
+      <input id="x1" class="vec" aria-label="x1" type="number" step="0.5">
+      <div class="op">=</div>
+      <input id="b1" class="vec outb" aria-label="b1" type="text" readonly tabindex="-1">
+      <div class="formula" id="f1"></div>
+
+      <div class="lab" data-row="1" style="color:var(--row2)"><svg class="glyph" id="gr2" viewBox="0 0 22 22"></svg>Row 2</div>
+      <input id="a21" class="k1" aria-label="Row 2, column 1" type="number" step="0.5" data-row="1" data-col="0">
+      <input id="a22" class="k2" aria-label="Row 2, column 2" type="number" step="0.5" data-row="1" data-col="1">
+      <div class="op"></div>
+      <input id="x2" class="vec" aria-label="x2" type="number" step="0.5">
+      <div class="op">=</div>
+      <input id="b2" class="vec outb" aria-label="b2" type="text" readonly tabindex="-1">
+      <div class="formula" id="f2"></div>
+    </div>
+
+    <div class="side">
+      <div class="presets" role="group" aria-label="Preset matrices">
+        <button data-p="stretch">Stretch</button>
+        <button data-p="rotate">Rotate 90°</button>
+        <button data-p="reflect">Reflect</button>
+        <button data-p="shear">Shear</button>
+        <button data-p="collapse">Collapse</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panes">
+    <section class="pane" aria-labelledby="h-rows">
+      <h2 id="h-rows">Rows move x to b, one coordinate each</h2>
+      <p class="cap" id="capR"></p>
+      <svg class="fig" id="rows" viewBox="0 0 400 400" role="img" aria-label="x moving to b, one coordinate per row"></svg>
+      <p class="read" id="readR" aria-live="polite"></p>
+      <div class="motion">
+        <button id="playR">Play</button>
+        <input type="range" id="steps" min="0" max="2" step="0.01" value="0" aria-label="Row 1, then Row 2">
+      </div>
+      <div class="stops"><span>Row 1</span><span>Row 2</span></div>
+    </section>
+    <section class="pane" aria-labelledby="h-cols">
+      <h2 id="h-cols">Columns are where î and ĵ land</h2>
+      <p class="cap" id="capC"></p>
+      <svg class="fig" id="cols" viewBox="0 0 400 400" role="img" aria-label="The basis vectors and their grid, carried by the motion"></svg>
+      <p class="flat" id="flat" aria-live="polite"></p>
+      <div class="motion">
+        <button id="playC">Play</button>
+        <span class="end">Before</span>
+        <input type="range" id="morph" min="0" max="1" step="0.01" value="0" aria-label="Before to after">
+        <span class="end">After</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="ctl">
+    <span>Zoom (or pinch)</span><input type="range" id="zoom" min="-10" max="-1" step="0.1" value="-5" aria-label="Zoom, both views">
+    <button id="recenter">Recenter</button>
+    <label><input type="checkbox" id="snap" checked> Snap to half-units</label>
+    <span id="hint"></span>
+  </div>
+</div>
+
+<script>
+"use strict";
+// State: matrix A (by rows), x, and b = Ax; t runs the Columns pane (0 = before, 1 = after) and u runs the Rows pane.
+const S = { A: [[1, -1], [1, 2]], x: [2, 1], b: [1, 4], t: 0, u: 0 };
+const PRESETS = {
+  stretch: [[2, 0], [0, 0.5]], rotate: [[0, -1], [1, 0]], reflect: [[1, 0], [0, -1]],
+  shear: [[1, 1], [0, 1]], collapse: [[1, 2], [0.5, 1]]
+};
+const VW = { c: [0, 0], R: 5 };
+const W = 400, LIMIT = 99, EPS = 1e-9;
+const NS = "http://www.w3.org/2000/svg";
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el = (tag, attrs, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+// Numbers: exact values print plainly; anything rounded is marked with ≈.
+function fmt(v) {
+  let r = Math.round(v * 100) / 100;
+  const approx = Math.abs(r - v) > EPS;
+  if (Math.abs(r) < EPS) r = 0;
+  return (approx ? "≈" : "") + (r < 0 ? "−" : "") + String(Math.abs(r));
+}
+const fmtP = v => (v < 0 ? "(" + fmt(v) + ")" : fmt(v));
+const pt = v => `(${fmt(v[0])}, ${fmt(v[1])})`;
+const mul = (A, v) => [A[0][0] * v[0] + A[0][1] * v[1], A[1][0] * v[0] + A[1][1] * v[1]];
+const ok = v => Number.isFinite(v) && Math.abs(v) <= LIMIT;
+const near0 = v => Math.abs(v) < EPS;
+const dt = M => M[0][0] * M[1][1] - M[0][1] * M[1][0];
+// The motion: the plane moves along the straight path from I to A.
+const at = t => [[1 - t + t * S.A[0][0], t * S.A[0][1]], [t * S.A[1][0], 1 - t + t * S.A[1][1]]];
+const isZero = r => Math.abs(r[0]) < EPS && Math.abs(r[1]) < EPS;
+let hlRow = null, hlCol = null;
+
+// b follows from A and x. singular: column 1 and column 2 lie on one line, so other inputs land on b too.
+function compute() { S.b = mul(S.A, S.x); return { singular: near0(dt(S.A)) }; }
+
+// A view: half-width R (units) around centre c, mapped onto the 400-unit square. Both figures share it.
+function view() {
+  const R = VW.R, c = VW.c, U = W / (2 * R);
+  return { R, U, c,
+    px: ([x, y]) => [W / 2 + (x - c[0]) * U, W / 2 - (y - c[1]) * U],
+    units: ([sx, sy]) => [c[0] + (sx - W / 2) / U, c[1] - (sy - W / 2) / U],
+    inside: ([x, y]) => Math.abs(x - c[0]) <= R && Math.abs(y - c[1]) <= R };
+}
+
+// ---------- shared drawing ----------
+function frame(svg, V) {
+  svg.innerHTML = "";
+  const d = el("defs", {}, svg);
+  const cp = el("clipPath", { id: svg.id + "-clip" }, d);
+  el("rect", { x: 0, y: 0, width: W, height: W, rx: 8 }, cp);
+  for (const n of ["col1", "col2"]) {
+    const m = el("marker", { id: `${svg.id}-ah-${n}`, viewBox: "0 0 10 10", refX: 8.5, refY: 5, markerWidth: 4, markerHeight: 4, orient: "auto-start-reverse" }, d);
+    el("path", { d: "M0,0 L10,5 L0,10 z", fill: css("--" + n) }, m);
+  }
+  el("rect", { x: 0, y: 0, width: W, height: W, rx: 8, fill: css("--soft"), class: "bg" }, svg);
+  const g = el("g", { "clip-path": `url(#${svg.id}-clip)`, "pointer-events": "none" }, svg);
+  const step = V.R <= 2 ? 0.5 : 1;
+  for (let k = Math.ceil((V.c[0] - V.R) / step) * step; k <= V.c[0] + V.R; k += step) {
+    const [p] = V.px([k, 0]);
+    el("line", { x1: p, y1: 0, x2: p, y2: W, stroke: css("--grid0") }, g);
+  }
+  for (let k = Math.ceil((V.c[1] - V.R) / step) * step; k <= V.c[1] + V.R; k += step) {
+    const [, p] = V.px([0, k]);
+    el("line", { x1: 0, y1: p, x2: W, y2: p, stroke: css("--grid0") }, g);
+  }
+  const [ox, oy] = V.px([0, 0]);
+  el("line", { x1: 0, y1: oy, x2: W, y2: oy, stroke: css("--muted"), opacity: .45 }, g);
+  el("line", { x1: ox, y1: 0, x2: ox, y2: W, stroke: css("--muted"), opacity: .45 }, g);
+  return g;
+}
+function arrow(g, svg, V, from, to, name, w, extra) {
+  const [x1, y1] = V.px(from), [x2, y2] = V.px(to);
+  if (![x1, y1, x2, y2].every(Number.isFinite) || Math.hypot(x2 - x1, y2 - y1) < 3) return null;
+  el("line", Object.assign({ x1, y1, x2, y2, stroke: css("--" + name), "stroke-width": w, "stroke-linecap": "round",
+    "marker-end": `url(#${svg.id}-ah-${name})` }, extra || {}), g);
+  return [[x1, y1], [x2, y2]];
+}
+function dot(g, V, p, color, hollow) {
+  const [x, y] = V.px(p);
+  el("circle", { cx: x, cy: y, r: hollow ? 6 : 5, fill: hollow ? css("--canvas") : color, stroke: color, "stroke-width": hollow ? 2.5 : 0 }, g);
+}
+// The line a·p₁ + b·p₂ = c of the old plane, carried by M. Returns its two far ends
+// (or a single point if M squashes the line, or null if it misses the view).
+function carried(M, a, b, c, V) {
+  const n2 = a * a + b * b;
+  if (n2 < EPS * EPS) return null;
+  const n = Math.sqrt(n2), p0 = [a * c / n2, b * c / n2], d = [-b / n, a / n];
+  const q0 = mul(M, p0), e = mul(M, d), e2 = e[0] * e[0] + e[1] * e[1];
+  if (e2 < 1e-10) return V.inside(q0) ? { point: q0 } : null;
+  const s = ((V.c[0] - q0[0]) * e[0] + (V.c[1] - q0[1]) * e[1]) / e2;
+  const foot = [q0[0] + s * e[0], q0[1] + s * e[1]];
+  if (Math.hypot(foot[0] - V.c[0], foot[1] - V.c[1]) > V.R * 1.5) return null;
+  const k = 3 * V.R / Math.sqrt(e2);
+  return { foot, d: e.map(v => v / Math.sqrt(e2)), ends: [[foot[0] - k * e[0], foot[1] - k * e[1]], [foot[0] + k * e[0], foot[1] + k * e[1]]] };
+}
+function seg(g, V, L, attrs) {
+  const [p, q] = [V.px(L.ends[0]), V.px(L.ends[1])];
+  el("line", Object.assign({ x1: p[0], y1: p[1], x2: q[0], y2: q[1] }, attrs), g);
+}
+// How many grid steps to draw so the carried grid still fills the view.
+function reach(M, V, scale) {
+  const d = Math.abs(dt(M)), fro = Math.hypot(M[0][0], M[0][1], M[1][0], M[1][1]);
+  const stretch = d < 1e-6 ? 80 : Math.min(80, fro / d);
+  return Math.min(80, Math.ceil((Math.max(Math.abs(V.c[0]), Math.abs(V.c[1])) + V.R) * 1.5 * stretch * scale) + 1);
+}
+// Label placement. Records go in priority order: { p, name, val, color, required, solo, size }.
+// Each label takes the first offset that clears the frame edge, every dot, every drawn arrow, and
+// every label already placed (including notes passed in as taken boxes). Optional labels with
+// no clear spot are dropped. Points at the same spot share one label ("x = column 2 = (2, 1)");
+// points too close to label apart share one label ("x = (2, 1), b = (2, 1.5)").
+const OFFSETS = [[9, -9, "start"], [9, 19, "start"], [-9, -9, "end"], [-9, 19, "end"], [0, -13, "middle"], [0, 24, "middle"], [13, 5, "start"], [-13, 5, "end"]];
+const CANDS = OFFSETS.concat(OFFSETS.map(([a, b, c]) => [a * 2, b * 2, c]), OFFSETS.map(([a, b, c]) => [a * 3, b * 3, c]));
+const hit = (a, b) => a.x < b.x + b.w + 2 && b.x < a.x + a.w + 2 && a.y < b.y + b.h + 2 && b.y < a.y + a.h + 2;
+// Does the segment p–q (pixels) cross the box, grown by 2? Clips the segment to the box (Liang–Barsky).
+function segHit([p, q], b) {
+  const x0 = b.x - 2, x1 = b.x + b.w + 2, y0 = b.y - 2, y1 = b.y + b.h + 2;
+  const dx = q[0] - p[0], dy = q[1] - p[1];
+  let lo = 0, hi = 1;
+  for (const [d, n] of [[-dx, p[0] - x0], [dx, x1 - p[0]], [-dy, p[1] - y0], [dy, y1 - p[1]]]) {
+    if (Math.abs(d) < EPS) { if (n < 0) return false; continue; }
+    const r = n / d;
+    if (d < 0) lo = Math.max(lo, r); else hi = Math.min(hi, r);
+    if (lo > hi) return false;
+  }
+  return true;
+}
+// segs: drawn arrows, in pixels, that a label must not cross
+function placeLabels(svg, V, recs, taken, segs) {
+  segs = segs || [];
+  const groups = [];
+  for (const r of recs) {
+    if (!r.name) continue;
+    const same = q => Math.abs(q.p[0] - r.p[0]) < EPS && Math.abs(q.p[1] - r.p[1]) < EPS;
+    const near = q => { const a = V.px(q.p), c = V.px(r.p); return Math.hypot(a[0] - c[0], a[1] - c[1]) < 26; };
+    const m = r.solo ? null : groups.find(q => !q.solo && same(q)) || groups.find(q => !q.solo && near(q));
+    if (m) { m.items.push(r); m.required = m.required || r.required; } else groups.push({ ...r, items: [r] });
+  }
+  const text = gr => {
+    if (gr.solo) return gr.name;
+    const allSame = gr.items.every(q => Math.abs(q.p[0] - gr.p[0]) < EPS && Math.abs(q.p[1] - gr.p[1]) < EPS);
+    if (allSame) { const v = gr.items.map(q => q.val).find(Boolean); return gr.items.map(q => q.name).join(" = ") + (v ? " = " + v : ""); }
+    return gr.items.map(q => q.name + (q.val ? " = " + q.val : "")).join(", ");
+  };
+  const obstacles = recs.filter(r => !r.solo).map(r => { const [x, y] = V.px(r.p); return { x: x - 7, y: y - 7, w: 14, h: 14 }; });
+  const placed = (taken || []).slice();
+  for (const r of groups) {
+    const [x, y] = V.px(r.p);
+    if (!Number.isFinite(x) || !V.inside(r.p)) continue;
+    const t = el("text", { fill: r.color, "font-size": r.size || 13, "font-weight": 650, "paint-order": "stroke",
+      stroke: css("--soft"), "stroke-width": 4, "stroke-linejoin": "round", class: "lbl", "pointer-events": "none" }, svg);
+    t.textContent = text(r);
+    let chosen = null;
+    const tryAll = () => {
+      for (const [dx, dy, anchor] of (r.solo ? OFFSETS : CANDS)) {
+        t.setAttribute("x", x + dx); t.setAttribute("y", y + dy); t.setAttribute("text-anchor", anchor);
+        const b = t.getBBox(), box = { x: b.x, y: b.y, w: b.width, h: b.height };
+        const inFrame = box.x >= 2 && box.y >= 2 && box.x + box.w <= W - 2 && box.y + box.h <= W - 2;
+        if (inFrame && !placed.some(q => hit(box, q)) && !obstacles.some(q => hit(box, q)) && !segs.some(s => segHit(s, box))) return box;
+      }
+      return null;
+    };
+    chosen = tryAll();
+    // a crowded label first drops its values ("x, b"), then its optional names, then, if required, takes the default spot
+    if (!chosen && !r.solo && r.items.some(q => q.val)) { t.textContent = r.items.map(q => q.name).join(", "); chosen = tryAll(); }
+    if (!chosen && !r.solo && r.items.some(q => !q.required) && r.items.some(q => q.required)) {
+      t.textContent = r.items.filter(q => q.required).map(q => q.name).join(", "); chosen = tryAll();
+    }
+    if (!chosen) {
+      if (!r.required) { t.remove(); continue; }
+      t.setAttribute("x", x + 9); t.setAttribute("y", y - 9); t.setAttribute("text-anchor", "start");
+      const b = t.getBBox(); chosen = { x: b.x, y: b.y, w: b.width, h: b.height };
+    }
+    placed.push(chosen);
+  }
+}
+function offView(svg, names, taken) {
+  if (!names.length) return;
+  const t = el("text", { x: 10, y: 20, fill: css("--muted"), "font-size": 12, "paint-order": "stroke", stroke: css("--soft"), "stroke-width": 4, "pointer-events": "none", class: "lbl" }, svg);
+  const list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
+  t.textContent = list + (names.length > 1 ? " are" : " is") + " outside the view.";
+  // a long list wraps onto further lines rather than running off the frame
+  if (t.getBBox().width > W - 20) {
+    const words = t.textContent.split(" ");
+    t.textContent = "";
+    let line = el("tspan", { x: 10, dy: 0 }, t);
+    for (const w of words) {
+      const before = line.textContent;
+      line.textContent = before ? before + " " + w : w;
+      if (before && line.getComputedTextLength() > W - 20) { line.textContent = before; line = el("tspan", { x: 10, dy: 15 }, t); line.textContent = w; }
+    }
+  }
+  const b = t.getBBox(); if (taken) taken.push({ x: b.x, y: b.y, w: b.width, h: b.height });
+}
+// ---------- dragging, panning and zooming (both figures share one view) ----------
+// One finger or the mouse drags a point or pans; two fingers pinch to zoom; a trackpad pinch
+// (ctrl + wheel) zooms too. Zoom keeps the spot under the fingers in place.
+const RMIN = 1, RMAX = 10;
+function zoomAbout(R, mid, base) {
+  // base.units = the plane point that was under mid when the gesture began
+  R = Math.max(RMIN, Math.min(RMAX, R));
+  const U = W / (2 * R);
+  const c = [base.units[0] - (mid.x - W / 2) / U, base.units[1] + (mid.y - W / 2) / U];
+  if (!c.every(Number.isFinite)) return;
+  VW.R = R; VW.c = c.map(v => Math.max(-LIMIT, Math.min(LIMIT, v)));
+  $("zoom").value = -R; draw();
+}
+function attachDrag(svg, setPoint) {
+  let mode = null, start = null, pinch = null;
+  const ptrs = new Map();
+  const toSvg = e => {
+    const ctm = svg.getScreenCTM(), r = svg.getBoundingClientRect();
+    if (!ctm || r.width === 0 || !Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return null;
+    const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+    return p.matrixTransform(ctm.inverse());
+  };
+  const pinchState = () => {
+    const [a, b] = [...ptrs.values()];
+    return { d: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+  };
+  svg.addEventListener("pointerdown", e => {
+    const q = toSvg(e); if (!q) return;
+    ptrs.set(e.pointerId, q);
+    try { svg.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+    e.preventDefault();
+    if (ptrs.size === 2) {
+      mode = null;
+      const s = pinchState(), V = view();
+      pinch = { d: s.d, R: V.R, units: V.units([s.mid.x, s.mid.y]) };
+      return;
+    }
+    if (ptrs.size > 2) return;
+    const key = e.target.dataset ? e.target.dataset.key : null;
+    mode = key || "pan";
+    start = { q, c: VW.c.slice() };
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const q = toSvg(e); if (!q) return;
+    ptrs.set(e.pointerId, q);
+    if (pinch && ptrs.size === 2) {
+      const s = pinchState();
+      if (s.d > 4 && pinch.d > 4) zoomAbout(pinch.R * pinch.d / s.d, s.mid, pinch);
+      return;
+    }
+    if (!mode) return;
+    const V = view();
+    if (mode === "pan") {
+      const c = [start.c[0] - (q.x - start.q.x) / V.U, start.c[1] + (q.y - start.q.y) / V.U];
+      if (c.every(Number.isFinite)) { VW.c = c.map(v => Math.max(-LIMIT, Math.min(LIMIT, v))); draw(); }
+      return;
+    }
+    let v = V.units([q.x, q.y]).map(t => Math.max(-LIMIT, Math.min(LIMIT, t)));
+    // snapped to half-units, or else to hundredths, so every value shown is exact
+    v = v.map(t => ($("snap").checked ? Math.round(t * 2) / 2 : Math.round(t * 100) / 100));
+    if (v.every(Number.isFinite)) setPoint(mode, v);
+  });
+  const end = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    mode = null;
+  };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("wheel", e => {
+    if (!e.ctrlKey) return; // plain scrolling still scrolls the page
+    const q = toSvg(e); if (!q) return;
+    e.preventDefault();
+    const V = view();
+    zoomAbout(V.R * Math.exp(e.deltaY * 0.01), q, { units: V.units([q.x, q.y]) });
+  }, { passive: false });
+}
+function addHandles(svg, V, pts) {
+  // Crowded draggable points nest so each stays reachable (first listed is innermost, on top).
+  const keys = Object.keys(pts).filter(k => pts[k] && V.inside(pts[k]));
+  const pxs = Object.fromEntries(keys.map(k => [k, V.px(pts[k])]));
+  const crowded = keys.some((a, i) => keys.slice(i + 1).some(b => Math.hypot(pxs[a][0] - pxs[b][0], pxs[a][1] - pxs[b][1]) < 44));
+  const radii = [11, 17, 23];
+  keys.slice().reverse().forEach(k => {
+    const r = crowded ? radii[Math.min(keys.indexOf(k), 2)] : 22;
+    el("circle", { cx: pxs[k][0], cy: pxs[k][1], r, fill: "transparent", class: "handle", "data-key": k }, svg);
+  });
+}
+function dragTo(k, v) {
+  if (k === "x") S.x = v;
+  if (k === "b") S.b = v;
+  if (k === "c1") { S.A[0][0] = v[0]; S.A[1][0] = v[1]; }
+  if (k === "c2") { S.A[0][1] = v[0]; S.A[1][1] = v[1]; }
+  render();
+}
+attachDrag($("rows"), dragTo);
+attachDrag($("cols"), dragTo);
+
+// ---------- the two figures ----------
+const vlab = v => pt(v);
+const I2 = [[1, 0], [0, 1]];
+const ease = f => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, f)));
+// b stays "?" until a pane has worked it out, so students can predict it first: coordinate i is
+// known once the Rows pane has finished Row i, or once the Columns pane has reached After.
+const known = i => rowProgress(i, stage()).terms >= 1 || S.t > 0.999;
+const bAll = () => known(0) && known(1);
+const bTxt = () => `(${known(0) ? fmt(S.b[0]) : "?"}, ${known(1) ? fmt(S.b[1]) : "?"})`;
+// Rows pane: x moves to b one coordinate at a time. u in [0, 1] runs Row 1, (1, 2] runs Row 2.
+// While a row runs, its two terms are laid along that axis and the point slides, together.
+function stage() {
+  const u = S.u, k = u > 1 ? 1 : 0;
+  return { k, f: Math.max(0, Math.min(1, u - k)) };
+}
+const clamp01 = v => Math.max(0, Math.min(1, v));
+// How far Row i has got: terms (0..1, laying out its two terms) and slide (0..1, moving the point, eased).
+function rowProgress(i, st) {
+  if (i < st.k) return { terms: 1, slide: 1 };
+  if (i > st.k) return { terms: 0, slide: 0 };
+  return { terms: st.f, slide: ease(st.f) };
+}
+function rowsPoint(st) {
+  const p0 = rowProgress(0, st), p1 = rowProgress(1, st);
+  return [S.x[0] + (S.b[0] - S.x[0]) * p0.slide, S.x[1] + (S.b[1] - S.x[1]) * p1.slide];
+}
+function drawRows(sol) {
+  const svg = $("rows"), V = view(), g = frame(svg, V), A = S.A, st = stage();
+  const colors = [css("--row1"), css("--row2")], recs = [], taken = [], segs = [];
+  const P = rowsPoint(st);
+  const outs = [];
+  if (!V.inside(S.x)) outs.push("x");
+  if (S.u > 1.999 && !V.inside(S.b)) outs.push("b");
+  offView(svg, outs, taken);
+  // keep the term labels off x and the moving point (x's and b's own labels see the dots through placeLabels)
+  const dotBoxes = [S.x, P].map(q => { const [qx, qy] = V.px(q); return { x: qx - 8, y: qy - 8, w: 16, h: 16 }; });
+  // each row's two terms, laid tip to tail along its own axis (Row 1 across, Row 2 up),
+  // coloured by the column each term comes from
+  [0, 1].forEach(i => {
+    const pr = rowProgress(i, st); if (pr.terms <= 0) return;
+    const t1 = A[i][0] * S.x[0], t2 = A[i][1] * S.x[1];
+    const g1 = clamp01(pr.terms / 0.5), g2 = clamp01((pr.terms - 0.5) / 0.5);
+    const along = v => (i === 0 ? [v, 0] : [0, v]);
+    const nudge = (p, k) => (i === 0 ? [p[0], p[1] + k] : [p[0] - k, p[1]]); // just off the axis, in pixels
+    const s1 = [along(0), along(t1 * g1)], s2 = [along(t1), along(t1 + t2 * g2)];
+    [[s1, "col1", 9, g1, `${fmt(A[i][0])}·${fmtP(S.x[0])}`], [s2, "col2", 17, g2, `${fmtP(A[i][1])}·${fmtP(S.x[1])}`]].forEach(([sg, n, k, grow, name]) => {
+      if (grow <= 0) return;
+      const [p, q] = [nudge(V.px(sg[0]), k), nudge(V.px(sg[1]), k)];
+      const faded = i < st.k || S.u > 1.999;
+      if (Math.hypot(q[0] - p[0], q[1] - p[1]) >= 6) {
+        el("line", { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: css("--" + n), "stroke-width": 3, "stroke-linecap": "round",
+          "marker-end": `url(#rows-ah-${n})`, opacity: hlRow !== null && hlRow !== i ? 0.15 : faded ? 0.35 : 1 }, g);
+        segs.push([p, q]);
+      }
+      if (grow >= 1 && Math.hypot(q[0] - p[0], q[1] - p[1]) >= 6) {
+        // the term's value written beside its arrow (and kept once written): first term on the inner side, second on the outer side
+        const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, first = n === "col1";
+        const at = i === 0 ? { x: mx, y: first ? my - 14 : my + 20, a: "middle" } : { x: first ? mx + 12 : mx - 12, y: my + 4, a: first ? "start" : "end" };
+        const t = el("text", { x: at.x, y: at.y, "text-anchor": at.a, fill: css("--" + n), "font-size": 12, "font-weight": 650, "paint-order": "stroke",
+          stroke: css("--soft"), "stroke-width": 4, class: "lbl", "pointer-events": "none" }, svg);
+        t.textContent = name;
+        const bb = t.getBBox(), box = { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+        if (taken.concat(dotBoxes).some(q2 => hit(box, q2)) || bb.x < 2 || bb.y < 2 || bb.x + bb.width > W - 2 || bb.y + bb.height > W - 2) t.remove(); else taken.push(box);
+      }
+    });
+    // once the terms are down, a guide line marks the new coordinate
+    if (pr.terms >= 1) {
+      const gl = i === 0 ? carried(I2, 1, 0, S.b[0], V) : carried(I2, 0, 1, S.b[1], V);
+      if (gl && gl.ends) seg(g, V, gl, { stroke: colors[i], "stroke-width": 1.5, "stroke-dasharray": "3 4", opacity: .9 });
+      const tick = V.px(along(S.b[i]));
+      el("circle", { cx: tick[0], cy: tick[1], r: 4, fill: colors[i] }, g);
+    }
+  });
+  // the trail and the moving point
+  const corner = [S.b[0], S.x[1]], path = [S.x];
+  if (st.k === 1) path.push(corner, P); else path.push(P);
+  for (let j = 1; j < path.length; j++) {
+    const [a, b] = [V.px(path[j - 1]), V.px(path[j])];
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 1) continue;
+    el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: css("--vout"), "stroke-width": 2, "stroke-dasharray": "1 5", "stroke-linecap": "round" }, g);
+  }
+  const atStart = S.u < 0.001, atEnd = S.u > 1.999;
+  if (!atStart) dot(g, V, S.x, css("--vin"), true);
+  // the moving point, drawn like the Columns pane's: a filled dot inside a ring
+  if (!atStart) dot(g, V, P, css("--vout"), true);
+  dot(g, V, P, atStart ? css("--vin") : css("--vout"), false);
+  const pts = [{ p: S.x, name: "x", val: vlab(S.x), color: css("--vin"), required: true }];
+  if (atEnd) pts.push({ p: S.b, name: "b", val: vlab(S.b), color: css("--vout"), required: true });
+  else if (!atStart) pts.push({ p: P, name: "", color: css("--vout") });
+  placeLabels(svg, V, pts.concat(recs), taken, segs);
+  addHandles(svg, V, { x: S.x });
+}
+
+// Columns pane: î, ĵ and their grid, carried by the motion; x keeps its grid place and lands on b.
+function drawCols(sol) {
+  const svg = $("cols"), V = view(), g = frame(svg, V), M = at(S.t), t = S.t;
+  const done = t > 0.999, start = t < 0.001;
+  const K = reach(M, V, 1);
+  for (let k = -K; k <= K; k++) {
+    for (const [a, b] of [[1, 0], [0, 1]]) {
+      const L = carried(M, a, b, k, V);
+      if (L && L.ends) seg(g, V, L, { stroke: css("--grid1"), "stroke-width": k === 0 ? 1.8 : 1.1 });
+    }
+  }
+  const c1 = [M[0][0], M[1][0]], c2 = [M[0][1], M[1][1]], m = mul(M, S.x);
+  const feet = [];
+  {
+    // how much of each: walk x₁ of the first vector along its line, and x₂ of the second along its line.
+    // Faint lines from the point, parallel to each vector, meet the other vector's line at those spots.
+    const f1 = [S.x[0] * c1[0], S.x[0] * c1[1]], f2 = [S.x[1] * c2[0], S.x[1] * c2[1]];
+    [[c1, "col1"], [c2, "col2"]].forEach(([c, n]) => {
+      const len = Math.hypot(c[0], c[1]); if (len < 1e-6) return;
+      const k = 3 * (V.R + Math.hypot(V.c[0], V.c[1])) / len;
+      const [p, q] = [V.px([-k * c[0], -k * c[1]]), V.px([k * c[0], k * c[1]])];
+      el("line", { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: css("--" + n), "stroke-width": 1, opacity: .35 }, g);
+    });
+    [[f1, "col1", S.x[0]], [f2, "col2", S.x[1]]].forEach(([f, n, k]) => {
+      if (near0(k)) return;
+      const [o, p] = [V.px([0, 0]), V.px(f)];
+      el("line", { x1: o[0], y1: o[1], x2: p[0], y2: p[1], stroke: css("--" + n), "stroke-width": 8, "stroke-linecap": "round", opacity: .18 }, g);
+      const q = V.px(m);
+      el("line", { x1: q[0], y1: q[1], x2: p[0], y2: p[1], stroke: css("--muted"), "stroke-width": 1.3, "stroke-dasharray": "4 4", opacity: .8 }, g);
+      el("circle", { cx: p[0], cy: p[1], r: 3.5, fill: css("--" + n) }, g);
+    });
+    if (start || done) {
+      // a foot at the arrow tip itself (a coefficient of 1) needs no label of its own
+      if (!near0(S.x[0]) && !near0(S.x[0] - 1)) feet.push({ p: f1, name: `${fmt(S.x[0])} · ${start ? "î" : "column 1"}`, color: css("--col1"), required: false });
+      if (!near0(S.x[1]) && !near0(S.x[1] - 1)) feet.push({ p: f2, name: `${fmt(S.x[1])} · ${start ? "ĵ" : "column 2"}`, color: css("--col2"), required: false });
+    }
+  }
+  const segs = [];
+  const w = n => (hlCol === n ? 5 : 3.5), op = n => (hlCol === null || hlCol === n ? 1 : 0.3);
+  // At After the column tips can be dragged, so each ends in a knob that shows where to pick it up:
+  // the arrow stops at the knob's edge, and a ringed dot sits on the tip.
+  const knobs = [];
+  const colArrow = (c, n, i) => {
+    if (!done) return arrow(g, svg, V, [0, 0], c, n, w(i), { opacity: op(i) });
+    const [o, q] = [V.px([0, 0]), V.px(c)], len = Math.hypot(q[0] - o[0], q[1] - o[1]);
+    if (!V.inside(c) || !Number.isFinite(len)) return arrow(g, svg, V, [0, 0], c, n, w(i), { opacity: op(i) });
+    if (len > 16) arrow(g, svg, V, [0, 0], c.map(v => v * (1 - 8 / len)), n, w(i), { opacity: op(i) });
+    el("circle", { cx: q[0], cy: q[1], r: 10, fill: "none", stroke: css("--" + n), "stroke-width": 1.5, opacity: 0.45 * op(i) }, g);
+    el("circle", { cx: q[0], cy: q[1], r: 6, fill: css("--" + n), stroke: css("--soft"), "stroke-width": 2, opacity: op(i) }, g);
+    knobs.push({ x: q[0] - 11, y: q[1] - 11, w: 22, h: 22 });
+    return len > 3 ? [o, q] : null;
+  };
+  const s1 = colArrow(c1, "col1", 0), s2 = colArrow(c2, "col2", 1);
+  [s1, s2].forEach(s => s && segs.push(s));
+  const pts = [], showB = bAll();
+  if (showB) {
+    const [a, b] = [V.px(S.x), V.px(S.b)];
+    el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: css("--vout"), "stroke-width": 1.5, "stroke-dasharray": "1 5", "stroke-linecap": "round", opacity: .8 }, g);
+  }
+  dot(g, V, S.x, css("--vin"), true);
+  pts.push({ p: S.x, name: "x", val: vlab(S.x), color: css("--vin"), required: true });
+  if (showB) {
+    dot(g, V, S.b, css("--vout"), true);
+    pts.push({ p: S.b, name: "b", val: vlab(S.b), color: css("--vout"), required: true });
+  }
+  dot(g, V, m, css("--vout"), false); pts.push({ p: m, name: "", color: css("--vout") });
+  // an arrow too short to draw gets no label (ĵ at the flat moment of a flip)
+  const n1 = !s1 ? "" : done ? "column 1" : start ? "î" : "î → column 1", n2 = !s2 ? "" : done ? "column 2" : start ? "ĵ" : "ĵ → column 2";
+  const taken = knobs.slice();
+  offView(svg, [["x", S.x], [showB ? "b" : "", S.b], [done ? "column 1" : "", c1], [done ? "column 2" : "", c2]]
+    .filter(([n, p]) => n && !V.inside(p)).map(([n]) => n), taken);
+  placeLabels(svg, V, pts.concat([
+    { p: c1, name: n1, val: start || done ? vlab(c1) : null, color: css("--col1"), required: false },
+    { p: c2, name: n2, val: start || done ? vlab(c2) : null, color: css("--col2"), required: false }
+  ], feet), taken, segs);
+  addHandles(svg, V, Object.assign({ x: S.x }, done ? { c1, c2 } : {}));
+}
+
+// ---------- words ----------
+function captions(sol) {
+  const A = S.A, x = S.x, b = S.b, t = S.t, start = t < 0.001, done = t > 0.999;
+  const st = stage();
+  const work = i => `${fmt(A[i][0])}·${fmtP(x[0])} + ${fmtP(A[i][1])}·${fmtP(x[1])} = ${known(i) ? fmt(b[i]) : "?"}`;
+  const axis = ["across", "up"];
+  let r;
+  if (S.u < 0.001) r = "Each row uses x's coordinates to work out one coordinate of b. Predict b, then play.";
+  else if (S.u > 1.999) r = `x has moved to b = ${pt(b)}. Row 1 set the across coordinate and Row 2 set the up coordinate.`;
+  else {
+    const i = st.k;
+    r = `Row ${i + 1} sets the ${axis[i]} coordinate: ${work(i)}.` + (i === 1 ? " It uses x's coordinates, not the moved point's." : "");
+  }
+  $("capR").textContent = r;
+  // the running reading below the figure: b fills in as each row finishes its terms
+  const cur = i => (rowProgress(i, st).terms >= 1 ? fmt(b[i]) : "?");
+  put("readR", `<span class="vb">b = (${cur(0)}, ${cur(1)})</span>`);
+
+  let c;
+  if (start) c = `x = ${fmt(x[0])} · î + ${fmt(x[1])} · ĵ`;
+  else if (done) c = `b = ${fmt(x[0])} · column 1 + ${fmt(x[1])} · column 2` + (sol.singular ? ", but column 1 and column 2 lie on one line." : ".");
+  else c = `î and ĵ swing toward column 1 and column 2. The point keeps its place in the grid, ${pt(x)}.`;
+  $("capC").textContent = c;
+}
+function verdict(sol) {
+  const d = dt(S.A), t = S.t;
+  put("vbig", `A moves <span class="vx">x = ${pt(S.x)}</span> to <span class="vb">b = ${bTxt()}</span>.`);
+  put("vsmall", sol.singular ? "Column 1 and column 2 lie on one line, so other inputs land on b too." : "");
+  // the flat moment on the way: an arrow has shrunk to nothing, or the two arrows lie nearly on one
+  // line (the sine of the angle between them is small), whatever their size
+  const Mt = at(t), m1 = Math.hypot(Mt[0][0], Mt[1][0]), m2 = Math.hypot(Mt[0][1], Mt[1][1]);
+  const flatNow = m1 < 0.03 || m2 < 0.03 || Math.abs(dt(Mt)) / (m1 * m2) < 0.06;
+  put("flat", t > 0.001 && t < 0.999 && flatNow
+    ? (d < 0 ? "The plane is flat right now. A flip has to pass through flat on the way."
+             : "The plane is flat right now. The straight path from before to after squashes it here.")
+    : "");
+}
+function glyph(id, dir, color, isLine, dashed) {
+  const s = $(id); s.innerHTML = "";
+  const n = Math.hypot(dir[0], dir[1]);
+  if (n < EPS) { el("circle", { cx: 11, cy: 11, r: 2.5, fill: color }, s); return; }
+  const u = [dir[0] / n, -dir[1] / n];
+  if (isLine) {
+    el("line", { x1: 11 - 9 * u[0], y1: 11 - 9 * u[1], x2: 11 + 9 * u[0], y2: 11 + 9 * u[1], stroke: color, "stroke-width": 2.5, "stroke-linecap": "round", "stroke-dasharray": dashed ? "4 3" : null }, s);
+  } else {
+    const tip = [11 + 8 * u[0], 11 + 8 * u[1]], back = [11 - 6 * u[0], 11 - 6 * u[1]];
+    el("line", { x1: back[0], y1: back[1], x2: tip[0], y2: tip[1], stroke: color, "stroke-width": 2.5, "stroke-linecap": "round" }, s);
+    const l = [-u[1], u[0]];
+    el("path", { d: `M${tip[0] + 2 * u[0]},${tip[1] + 2 * u[1]} L${tip[0] - 4 * u[0] + 3.5 * l[0]},${tip[1] - 4 * u[1] + 3.5 * l[1]} L${tip[0] - 4 * u[0] - 3.5 * l[0]},${tip[1] - 4 * u[1] - 3.5 * l[1]} z`, fill: color }, s);
+  }
+}
+function sheet(sol) {
+  const A = S.A;
+  [0, 1].forEach(i => {
+    $("f" + (i + 1)).textContent = `${fmt(A[i][0])}·${fmtP(S.x[0])} + ${fmtP(A[i][1])}·${fmtP(S.x[1])}`;
+  });
+  glyph("gc1", [A[0][0], A[1][0]], css("--col1"), false);
+  glyph("gc2", [A[0][1], A[1][1]], css("--col2"), false);
+  glyph("gr1", [-A[0][1], A[0][0]], css("--row1"), true);
+  glyph("gr2", [-A[1][1], A[1][0]], css("--row2"), true, true);
+  $("hint").textContent = "Drag x" + (S.t > 0.999 ? ", the dots on the column tips," : "") + " or the background.";
+  ["b1", "b2"].forEach((id, i) => { $(id).value = known(i) ? fmt(S.b[i]) : "?"; });
+}
+// The live regions are rewritten only when their text changes, so a screen reader is not
+// re-announced every animation frame.
+const lastPut = {};
+function put(id, html) { if (lastPut[id] !== html) { lastPut[id] = html; $(id).innerHTML = html; } }
+
+// ---------- inputs ----------
+const cells = { a11: [0, 0], a12: [0, 1], a21: [1, 0], a22: [1, 1] };
+const show = v => (Number.isFinite(v) ? String(+v.toFixed(4)) : "");
+function syncInputs(skip) {
+  for (const id in cells) if (id !== skip) $(id).value = show(S.A[cells[id][0]][cells[id][1]]);
+  ["x1", "x2"].forEach((id, i) => { if (id !== skip) $(id).value = show(S.x[i]); });
+}
+for (const id in cells) $(id).addEventListener("input", e => {
+  const v = parseFloat(e.target.value);
+  if (ok(v)) { S.A[cells[id][0]][cells[id][1]] = v; render(id); }
+});
+["x1", "x2"].forEach((id, i) => $(id).addEventListener("input", e => {
+  const v = parseFloat(e.target.value);
+  if (ok(v)) { S.x[i] = v; render(id); }
+}));
+// a blank or out-of-range entry is refused: on leaving the field it shows the value in use again
+for (const id of Object.keys(cells).concat(["x1", "x2"])) $(id).addEventListener("change", () => syncInputs());
+document.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", () => {
+  S.A = PRESETS[b.dataset.p].map(r => r.slice()); render();
+}));
+document.querySelectorAll("#sheet [data-row], #sheet [data-col]").forEach(n => {
+  const on = () => {
+    hlRow = n.dataset.row !== undefined && n.dataset.col === undefined ? +n.dataset.row : null;
+    hlCol = n.dataset.col !== undefined && n.dataset.row === undefined ? +n.dataset.col : null;
+    draw();
+  };
+  const off = () => { hlRow = hlCol = null; draw(); };
+  n.addEventListener("mouseenter", on); n.addEventListener("mouseleave", off);
+});
+$("zoom").addEventListener("input", e => { VW.R = -e.target.value; draw(); });
+$("recenter").addEventListener("click", () => { VW.c = [0, 0]; draw(); });
+
+// ---------- motion: each pane has its own Play and slider ----------
+function animator(btn, slider, key, max, segDur, pauseAt) {
+  let a = null;
+  const stop = () => { if (a) cancelAnimationFrame(a.id); a = null; $(btn).textContent = "Play"; };
+  $(btn).addEventListener("click", () => {
+    if (a) { stop(); return; }
+    if (S[key] >= max - 0.001) S[key] = 0;
+    $(btn).textContent = "Pause";
+    let last = performance.now(), hold = 0;
+    const step = now => {
+      // a frame's timestamp can precede the click that started the clock, so never step backwards
+      const dtm = Math.max(0, now - last); last = now;
+      if (hold > 0) hold -= dtm;
+      else {
+        const before = S[key];
+        S[key] = Math.min(max, S[key] + dtm / segDur);
+        // brief pause at each stage boundary
+        for (const p of pauseAt) if (before < p && S[key] >= p) { S[key] = p; hold = 600; }
+      }
+      $(slider).value = S[key]; draw();
+      if (S[key] < max) a.id = requestAnimationFrame(step); else stop();
+    };
+    a = { id: requestAnimationFrame(step) };
+  });
+  $(slider).addEventListener("input", e => { stop(); S[key] = +e.target.value; draw(); });
+}
+animator("playR", "steps", "u", 2, 2400, [1]);
+animator("playC", "morph", "t", 1, 2600, []);
+
+let SOL = { singular: false };
+function draw() { drawRows(SOL); drawCols(SOL); captions(SOL); verdict(SOL); sheet(SOL); }
+function render(skip) { SOL = compute(); syncInputs(skip); draw(); }
+render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render());
+</script>
+</body>
+</html>
