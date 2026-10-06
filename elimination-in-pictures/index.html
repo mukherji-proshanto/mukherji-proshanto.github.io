@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elimination in Pictures: three planes, one step at a time</title>
+<style>
+  :root {
+    --text: #2C2C2B; --muted: #6F6C67; --canvas: #FFFFFF; --soft: #F9F8F7;
+    --surface2: #F0EFED; --border: #E6E5E3; --accent: #2783DE; --accent-soft: #E5F2FC;
+    --row1: #2783DE; --row2: #8E5BB5; --row3: #2F8A57; --good: #2F8A57; --good-soft: #E8F1EC;
+    --warn: #B5641F; --warn-soft: #FBEFE3; --bad: #C4403A; --dot: #C46F28; --edge: #CFCDC9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #FFFFFF; --muted: rgba(255,255,255,.65); --canvas: #191919; --soft: #202020;
+      --surface2: #2A2A29; --border: rgba(255,255,255,.20); --accent: #5E9FE8; --accent-soft: rgba(94,159,232,.12);
+      --row1: #5E9FE8; --row2: #BF8EDA; --row3: #72BC8F; --good: #72BC8F; --good-soft: rgba(114,188,143,.14);
+      --warn: #DE9255; --warn-soft: rgba(222,146,85,.14); --bad: #E97366; --dot: #DE9255; --edge: #3A3A39;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 16px 20px 20px; }
+  .verdict { margin: 0 0 12px; min-height: 58px; }
+  .verdict .big { font-size: 22px; font-weight: 650; letter-spacing: -.01em; margin: 0; font-variant-numeric: tabular-nums; }
+  .verdict .small { font-size: 15px; color: var(--muted); margin: 2px 0 0; }
+  .verdict .small.warn { color: var(--warn); font-weight: 600; }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  @media (max-width: 860px) {
+    /* phones: the picture first, the steps right under it, the equations last */
+    .main { grid-template-columns: 1fr; } .main .left { display: contents; }
+    .right { order: 1; } #card1 { order: 2; } #card2 { order: 3; } #cardSys { order: 4; }
+  }
+  .card { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .card h2 { font-size: 16px; margin: 0 0 8px; font-weight: 650; }
+  .card.off h2 { color: var(--muted); }
+  .r1 { color: var(--row1); } .r2 { color: var(--row2); } .r3 { color: var(--row3); }
+  .eq { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; font-size: 15px; }
+  .eq .rl { width: 44px; flex: none; font-weight: 650; font-size: 13px; }
+  .eq input, .opline input { width: 48px; height: 36px; text-align: center; font: inherit; font-size: 15px; color: var(--text);
+    background: var(--soft); border: 1px solid var(--border); border-radius: 8px; padding: 0 2px; font-variant-numeric: tabular-nums; }
+  input.bad { border-color: var(--bad) !important; box-shadow: 0 0 0 1px var(--bad); }
+  .eq .v { white-space: nowrap; }
+  @media (max-width: 420px) { table.tab { border-spacing: 3px; } .tab td { min-width: 48px; padding: 3px 2px; } .tab td .n { font-size: 15px; } .eq { gap: 2px; font-size: 14px; } .eq input { width: 40px; font-size: 14px; } .eq .rl { width: 40px; font-size: 12px; } .wrap { padding: 12px; } }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .lbl-s { font-size: 12px; color: var(--muted); }
+  button { font: inherit; font-size: 13px; color: var(--text); background: var(--soft); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; min-height: 36px; cursor: pointer; }
+  button:hover { background: var(--surface2); }
+  button:disabled { opacity: .45; cursor: default; }
+  button:disabled:hover { background: var(--soft); }
+  button.cta { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 650; }
+  button.cta:disabled:hover { background: var(--accent); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  table.tab { border-collapse: separate; border-spacing: 4px; margin: 0 0 0 -4px; font-variant-numeric: tabular-nums; }
+  .tab th { font-size: 12px; color: var(--muted); font-weight: 600; padding: 0 4px; text-align: center; }
+  .tab th.rh { text-align: left; font-size: 13px; font-weight: 650; padding-left: 0; }
+  .tab th.rh.r1 { color: var(--row1); } .tab th.rh.r2 { color: var(--row2); } .tab th.rh.r3 { color: var(--row3); }
+  .tab td { min-width: 62px; text-align: center; background: var(--soft); border: 1px solid var(--border); border-radius: 8px; padding: 3px 4px; }
+  .tab td .n { font-size: 16px; font-weight: 650; display: block; overflow-wrap: anywhere; }
+  .tab td .w { font-size: 10.5px; color: var(--muted); display: block; min-height: 14px; line-height: 1.2; overflow-wrap: anywhere; }
+  .tab td.rs { border-left: 2px solid var(--muted); }
+  .tab td.diag { border-color: var(--text); }
+  .tab td.target { background: var(--warn-soft); border-color: var(--warn); }
+  .tab td.zero { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+  .tab td.stuck { background: var(--warn-soft); border-color: var(--bad); color: var(--bad); }
+  .prompt { margin: 10px 0 0; font-size: 14px; color: var(--muted); min-height: 21px; }
+  .opline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 16px; margin: 6px 0 0; min-height: 38px; }
+  .opline input { width: 64px; background: var(--accent-soft); }
+  .hint { font-size: 13.5px; color: var(--muted); margin: 6px 0 0; min-height: 20px; }
+  .steps { margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+  .steps ol { margin: 4px 0 6px; padding-left: 22px; font-variant-numeric: tabular-nums; }
+  .steps .none { color: var(--muted); }
+  .steps .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .steps button { min-height: 30px; padding: 3px 8px; font-size: 12px; }
+  .read { font-size: 15.5px; font-weight: 600; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+  .read.muted { color: var(--muted); font-weight: 400; }
+  svg.fig { width: 100%; height: auto; display: block; touch-action: none; user-select: none; cursor: grab; border-radius: 8px; }
+  svg.fig:active { cursor: grabbing; }
+  .cap { font-size: 14px; color: var(--muted); margin: 8px 0 0; min-height: 42px; font-variant-numeric: tabular-nums; }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .ctl input[type=range] { width: 140px; accent-color: var(--accent); }
+  .ctl button { min-height: 30px; padding: 3px 8px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="verdict" aria-live="polite">
+    <p class="big" id="vbig"></p>
+    <p class="small" id="vsmall"></p>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <section class="card" id="card1" aria-labelledby="h-s1">
+        <h2 id="h-s1">Step 1: make zeros below the diagonal</h2>
+        <table class="tab" aria-label="The numbers in the three rows">
+          <thead><tr><th></th><th>x₁</th><th>x₂</th><th>x₃</th><th>right side</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <p class="prompt" id="prompt" aria-live="polite"></p>
+        <div class="opline" id="opline"></div>
+        <p class="hint" id="hint" aria-live="polite"></p>
+        <div class="steps">
+          <span class="lbl-s">Steps so far</span>
+          <ol id="steplist"></ol>
+          <div class="row"><button id="undo">Undo last step</button><button id="restart">Start over</button><button id="random">New random problem</button></div>
+        </div>
+      </section>
+
+      <section class="card" id="card2" aria-labelledby="h-s2">
+        <h2 id="h-s2">Step 2: back-substitute, bottom row first</h2>
+        <div class="presets" style="margin-top:0"><button id="bsNext" class="cta">Next</button><button id="bsBack">Back</button></div>
+        <p class="read" id="bs1"></p><p class="read" id="bs2"></p><p class="read" id="bs3"></p>
+      </section>
+
+      <section class="card" id="cardSys" aria-labelledby="h-sys">
+        <h2 id="h-sys">The equations</h2>
+        <div id="eqs"></div>
+        <div class="presets" role="group" aria-label="Example systems">
+          <span class="lbl-s">Try:</span>
+          <button id="random2">New random problem</button>
+          <button data-p="basic">Three steps</button>
+          <button data-p="swap">Zero on the diagonal</button>
+          <button data-p="frac">Fractions</button>
+          <button data-p="line">Row of zeros</button>
+          <button data-p="none">No solution</button>
+        </div>
+        <p class="hint">A random problem uses whole numbers all the way through. Changing a number starts the elimination over.</p>
+      </section>
+    </div>
+
+    <div class="right">
+      <svg class="fig" id="fig" viewBox="0 0 400 400" role="img" aria-label="The three equation planes and the point where they meet"></svg>
+      <p class="cap" id="cap" aria-live="polite"></p>
+      <div class="ctl">
+        <span>Zoom (or pinch)</span><input type="range" id="zoom" min="-10" max="-2" step="0.1" value="-4" aria-label="Zoom">
+        <button id="resetView">Reset view</button>
+        <span>Drag to turn the picture.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- state ----------
+// A row is [a, b, c, d], meaning a·x₁ + b·x₂ + c·x₃ = d. S.rows0 is the system as typed;
+// S.hist holds one entry per row operation (the rows after it, and the operation itself).
+// S.bs counts back-substitution steps (0 to 3).
+const PRESETS = {
+  basic: [[1, 1, 1, 4], [2, 3, 1, 7], [1, 3, 2, 8]],
+  swap: [[1, 1, 1, 4], [2, 2, 1, 6], [1, 3, 2, 8]],
+  frac: [[2, 1, 1, 4], [1, 2, 1, 4], [1, 1, 2, 4]],
+  line: [[1, 1, 1, 4], [2, 3, 1, 7], [3, 4, 2, 11]],
+  none: [[1, 1, 1, 4], [2, 3, 1, 7], [3, 4, 2, 12]]
+};
+const S = { rows0: PRESETS.basic.map(r => r.slice()), hist: [], bs: 0, hint: false };
+const VW = { yaw: -0.55, pitch: 0.42, R: 4, c: [0, 0, 0] };
+const W = 400, LIMIT = 99, EPS = 1e-9, XN = ["x₁", "x₂", "x₃"];
+const NS = "http://www.w3.org/2000/svg";
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el = (tag, attrs, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const near0 = v => Math.abs(v) < EPS;
+const clean = v => (Math.abs(v) < 1e-9 ? 0 : v);
+const rowColor = i => css("--row" + (i + 1));
+
+// Numbers: up to two decimals print plainly; other exact fractions (denominator up to 12) print
+// as fractions; anything else is rounded and marked with ≈.
+function nf(v) {
+  if (!Number.isFinite(v)) return "?";
+  if (Math.abs(v) < 1e-9) return "0";
+  const s = v < 0 ? "−" : "", a = Math.abs(v);
+  if (Math.abs(Math.round(a * 100) / 100 - a) < 1e-9) return s + String(Math.round(a * 100) / 100);
+  for (let d = 3; d <= 12; d++) {
+    const n = Math.round(a * d);
+    if (Math.abs(n / d - a) < 1e-9) return s + n + "/" + d;
+  }
+  return "≈" + s + String(a < 0.005 ? +a.toPrecision(2) : Math.round(a * 100) / 100); // never "≈0" for a number that is not 0
+}
+const nfP = v => (v < -1e-9 ? "(" + nf(v) + ")" : nf(v));
+const pt = v => "(" + v.map(nf).join(", ") + ")";
+// "2x₁", "x₁", "−x₁"; later = a term after the first (" + 2x₂", " − x₂").
+function coef(v, name, later) {
+  const a = Math.abs(v), k = nf(a), body = (near0(a - 1) ? "" : k.includes("/") ? "(" + k + ")" : k) + name;
+  if (!later) return (v < -1e-9 ? "−" : "") + body;
+  return (v < -1e-9 ? " − " : " + ") + body;
+}
+const terms = (cs, names) => {
+  let s = "";
+  cs.forEach((v, k) => { if (!near0(v)) s += s ? coef(v, names[k], true) : coef(v, names[k]); });
+  return s || "0";
+};
+function parseNum(s) {
+  s = String(s).trim().replace(/−/g, "-").replace(/\s+/g, "");
+  const m = s.match(/^(-?\d*\.?\d+)(?:\/(\d*\.?\d+))?$/);
+  if (!m) return null;
+  const v = m[2] !== undefined ? +m[1] / +m[2] : +m[1];
+  // refuse numbers too large to draw, and nonzero numbers too small to tell from 0
+  return Number.isFinite(v) && Math.abs(v) <= LIMIT && (v === 0 || Math.abs(v) >= 0.001) ? v : null;
+}
+
+// ---------- the algebra ----------
+const rows = () => (S.hist.length ? S.hist[S.hist.length - 1].rows : S.rows0);
+// The next move of the standard pipeline: work column by column; if the diagonal number is 0,
+// swap in a lower row that has something there; otherwise clear each number below it.
+function nextMove(R) {
+  let r = 0;
+  const pivots = [];
+  for (let j = 0; j < 3 && r < 3; j++) {
+    if (near0(R[r][j])) {
+      const k = [r + 1, r + 2].find(k => k < 3 && !near0(R[k][j]));
+      if (k === undefined) continue; // nothing in this column to work with: move right
+      return { type: "swap", a: r, b: k, j, pivots };
+    }
+    for (let i = r + 1; i < 3; i++) if (!near0(R[i][j])) return { type: "clear", i, r, j, pivots: pivots.concat([[r, j]]) };
+    pivots.push([r, j]); r++;
+  }
+  return { type: "done", pivots };
+}
+// What the system says, from the rows as typed (row operations never change it).
+function census(R) {
+  const M = R.map(r => r.slice());
+  // zero tests scale with the numbers typed, so shrinking every number keeps the same answer
+  const big = Math.max(...R.flat().map(Math.abs)) || 1, tol = 1e-10 * big;
+  let rank = 0;
+  const piv = [];
+  for (let j = 0; j < 3 && rank < 3; j++) {
+    let p = rank;
+    for (let i = rank + 1; i < 3; i++) if (Math.abs(M[i][j]) > Math.abs(M[p][j])) p = i;
+    if (Math.abs(M[p][j]) < tol) continue;
+    [M[rank], M[p]] = [M[p], M[rank]];
+    for (let i = 0; i < 3; i++) if (i !== rank) {
+      const f = M[i][j] / M[rank][j];
+      for (let k = 0; k < 4; k++) M[i][k] -= f * M[rank][k];
+    }
+    piv.push(j); rank++;
+  }
+  const bad = M.some(r => Math.abs(r[0]) < tol && Math.abs(r[1]) < tol && Math.abs(r[2]) < tol && Math.abs(r[3]) > tol);
+  if (bad) return { kind: "none", rank };
+  if (rank === 3) return { kind: "one", rank, x: [0, 1, 2].map(j => clean(M[j][3] / M[j][j])) };
+  if (rank === 2) {
+    // the solutions form a line: point p with both pivots solved and the free unknown at 0
+    const free = [0, 1, 2].find(j => !piv.includes(j));
+    const p = [0, 0, 0], d = [0, 0, 0];
+    d[free] = 1;
+    piv.forEach((j, k) => { p[j] = M[k][3] / M[k][j]; d[j] = -M[k][free] / M[k][j]; });
+    return { kind: "line", rank, p, d };
+  }
+  if (rank === 1) return { kind: "plane", rank };
+  return { kind: "all", rank };
+}
+function applyOp(op) {
+  const R = rows().map(r => r.slice());
+  if (op.type === "swap") [R[op.a], R[op.b]] = [R[op.b], R[op.a]];
+  else for (let k = 0; k < 4; k++) {
+    // a difference that is tiny next to the numbers subtracted is rounding: it is 0
+    const a = R[op.i][k], b = op.m * R[op.r][k], v = a - b;
+    R[op.i][k] = Math.abs(v) <= 1e-12 * (Math.abs(a) + Math.abs(b)) ? 0 : v;
+  }
+  if (R.some(r => r.some(v => !Number.isFinite(v) || Math.abs(v) > 1e6))) return false;
+  S.hist.push({ rows: R, op, before: rows() });
+  if (S.hist.length > 40) S.hist.shift();
+  S.bs = 0; S.hint = false;
+  return true;
+}
+
+// ---------- 3-D view ----------
+// Orthographic camera: turn by yaw around the x₃ axis, then tilt by pitch. x₃ points up.
+function cam() {
+  const cy = Math.cos(VW.yaw), sy = Math.sin(VW.yaw), cp = Math.cos(VW.pitch), sp = Math.sin(VW.pitch);
+  const U = W / (2 * VW.R * 1.85);
+  const local = p => [p[0] - VW.c[0], p[1] - VW.c[1], p[2] - VW.c[2]];
+  return { U,
+    px: p => { const [x, y, z] = local(p); const X = x * cy - y * sy, Y = x * sy + y * cy; return [W / 2 + X * U, W / 2 + 18 - (z * cp + Y * sp) * U]; },
+    depth: p => { const [x, y, z] = local(p); const Y = x * sy + y * cy; return Y * cp - z * sp; } };
+}
+const cubeV = () => { const out = []; for (const a of [-1, 1]) for (const b of [-1, 1]) for (const c of [-1, 1]) out.push([VW.c[0] + a * VW.R, VW.c[1] + b * VW.R, VW.c[2] + c * VW.R]); return out; };
+const EDGES = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+// The part of the plane n·p = d inside the view cube, as a polygon (null if it misses the cube).
+function planePoly(row) {
+  const n = row.slice(0, 3), d = row[3];
+  if (near0(Math.hypot(...n))) return null;
+  const V = cubeV(), pts = [];
+  for (const [i, j] of EDGES) {
+    const fi = dot3(n, V[i]) - d, fj = dot3(n, V[j]) - d;
+    if ((fi < 0 && fj < 0) || (fi > 0 && fj > 0) || near0(fi - fj)) continue;
+    const t = fi / (fi - fj);
+    const p = [0, 1, 2].map(k => V[i][k] + t * (V[j][k] - V[i][k]));
+    if (!pts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]) < 1e-6)) pts.push(p);
+  }
+  if (pts.length < 3) return null;
+  const c = [0, 1, 2].map(k => pts.reduce((s, p) => s + p[k], 0) / pts.length);
+  const nn = Math.hypot(...n), nu = n.map(v => v / nn);
+  const e1 = Math.abs(nu[0]) < 0.9 ? cross(nu, [1, 0, 0]) : cross(nu, [0, 1, 0]);
+  const e2 = cross(nu, e1);
+  pts.sort((p, q) => Math.atan2(dot3(p.map((v, k) => v - c[k]), e2), dot3(p.map((v, k) => v - c[k]), e1)) -
+    Math.atan2(dot3(q.map((v, k) => v - c[k]), e2), dot3(q.map((v, k) => v - c[k]), e1)));
+  return { pts, c };
+}
+// The part of the line p + t·d inside the view cube (null if it misses).
+function clipLine(p, d) {
+  let lo = -Infinity, hi = Infinity;
+  for (let k = 0; k < 3; k++) {
+    const a = VW.c[k] - VW.R, b = VW.c[k] + VW.R;
+    if (near0(d[k])) { if (p[k] < a || p[k] > b) return null; continue; }
+    let t1 = (a - p[k]) / d[k], t2 = (b - p[k]) / d[k];
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    lo = Math.max(lo, t1); hi = Math.min(hi, t2);
+  }
+  if (!(hi > lo)) return null;
+  return [p.map((v, k) => v + lo * d[k]), p.map((v, k) => v + hi * d[k])];
+}
+function meetLine(r1, r2) {
+  const n1 = r1.slice(0, 3), n2 = r2.slice(0, 3), d = cross(n1, n2), dd = dot3(d, d);
+  if (dd < 1e-12) return null;
+  const a = dot3(n1, n1), b = dot3(n1, n2), c = dot3(n2, n2), det = a * c - b * b;
+  const s = (r1[3] * c - r2[3] * b) / det, t = (r2[3] * a - r1[3] * b) / det;
+  return { p: [0, 1, 2].map(k => s * n1[k] + t * n2[k]), d };
+}
+const inCube = p => p.every((v, k) => Math.abs(v - VW.c[k]) <= VW.R + 1e-9);
+
+// ---------- labels ----------
+// Each label takes the first candidate spot that stays in the frame and clears the dots and
+// every label already placed. Optional labels with no clear spot are dropped; a required label
+// takes its first spot anyway.
+const hit = (a, b) => a.x < b.x + b.w + 2 && b.x < a.x + a.w + 2 && a.y < b.y + b.h + 2 && b.y < a.y + a.h + 2;
+function label(svg, text, color, cands, taken, required, size, short, furniture) {
+  const t = el("text", { fill: color, "font-size": size || 13, "font-weight": 650, "text-anchor": "middle", "paint-order": "stroke",
+    stroke: css("--canvas"), "stroke-width": 4, "stroke-linejoin": "round", class: "lbl" + (required ? " req" : ""), "pointer-events": "none" }, svg);
+  t.textContent = text;
+  for (const [x, y] of cands) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    t.setAttribute("x", x); t.setAttribute("y", y + 4);
+    const b = t.getBBox(), box = { x: b.x, y: b.y, w: b.width, h: b.height };
+    if (box.x >= 2 && box.y >= 2 && box.x + box.w <= W - 2 && box.y + box.h <= W - 2 && !taken.some(q => hit(box, q))) { if (furniture) box.el = t; taken.push(box); return true; }
+  }
+  if (short) { t.remove(); return label(svg, short, color, cands, taken, required, size); }
+  if (!required || !cands.length) { t.remove(); return false; }
+  // no clear spot: take the spot (kept inside the frame) that overlaps the least
+  const overlap = (a, q) => Math.max(0, Math.min(a.x + a.w, q.x + q.w) - Math.max(a.x, q.x)) * Math.max(0, Math.min(a.y + a.h, q.y + q.h) - Math.max(a.y, q.y));
+  let best = null;
+  for (let [x, y] of cands) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    t.setAttribute("x", x); t.setAttribute("y", y + 4);
+    const b = t.getBBox();
+    x += Math.max(0, 2 - b.x) - Math.max(0, b.x + b.width - W + 2); y += Math.max(0, 2 - b.y) - Math.max(0, b.y + b.height - W + 2);
+    t.setAttribute("x", x); t.setAttribute("y", y + 4);
+    const c = t.getBBox(), box = { x: c.x, y: c.y, w: c.width, h: c.height };
+    const cost = taken.reduce((sum, q) => sum + overlap(box, q), 0);
+    if (!best || cost < best.cost) best = { cost, x, y, box };
+  }
+  if (!best) { t.remove(); return false; }
+  t.setAttribute("x", best.x); t.setAttribute("y", best.y + 4);
+  // an axis name under a required label gives way
+  for (let k = taken.length - 1; k >= 0; k--) if (taken[k].el && hit(best.box, taken[k])) { taken[k].el.remove(); taken.splice(k, 1); }
+  taken.push(best.box);
+  return true;
+}
+// Spots for a plane's label: inside its polygon, near each corner, then its middle.
+function polyCands(P, poly) {
+  const c = P.px(poly.c), out = [];
+  const qs = poly.pts.map(p => P.px(p));
+  for (const f of [0.72, 0.5, 0.85, 0.3]) for (const q of qs) out.push([c[0] + f * (q[0] - c[0]), c[1] + f * (q[1] - c[1])]);
+  // and toward the middle of each side
+  qs.forEach((q, k) => { const r = qs[(k + 1) % qs.length], m = [(q[0] + r[0]) / 2, (q[1] + r[1]) / 2]; for (const f of [0.8, 0.6]) out.push([c[0] + f * (m[0] - c[0]), c[1] + f * (m[1] - c[1])]); });
+  out.push(c);
+  return out;
+}
+
+// ---------- the figure ----------
+function drawFig(st) {
+  const svg = $("fig"), P = cam(), taken = [];
+  svg.innerHTML = "";
+  el("rect", { x: 0, y: 0, width: W, height: W, rx: 8, fill: css("--soft") }, svg);
+  const g = el("g", { "pointer-events": "none" }, svg);
+  const V = cubeV();
+  // the view box: its edges, faint
+  for (const [i, j] of EDGES) {
+    const [a, b] = [P.px(V[i]), P.px(V[j])];
+    el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: css("--edge"), "stroke-width": 1 }, g);
+  }
+  // axes through 0, cut to the box
+  const axes = [];
+  for (let k = 0; k < 3; k++) {
+    const d = [0, 0, 0]; d[k] = 1;
+    const L = clipLine([0, 0, 0], d);
+    if (!L) continue;
+    const [a, b] = [P.px(L[0]), P.px(L[1])];
+    el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: css("--muted"), "stroke-width": 1.2, opacity: .6 }, g);
+    axes.push([b, XN[k]]);
+  }
+  const R = st.R, bs = st.canBack ? S.bs : 0;
+  const polys = R.map(planePoly);
+  const missing = [];
+  // the plane the last step replaced, as a dashed outline
+  const last = S.hist.length ? S.hist[S.hist.length - 1] : null;
+  let ghost = null;
+  if (last && last.op.type === "clear" && bs === 0) {
+    const old = last.before[last.op.i];
+    const same = R.some(r => near0(Math.hypot(...cross(r.slice(0, 3), old.slice(0, 3)))) && near0(Math.hypot(...cross([r[0], r[1], r[3]], [old[0], old[1], old[3]]))) && near0(Math.hypot(...cross([r[0], r[2], r[3]], [old[0], old[2], old[3]]))));
+    ghost = same ? null : planePoly(old);
+    if (ghost) el("polygon", { points: ghost.pts.map(p => P.px(p).join(",")).join(" "), fill: "none", stroke: rowColor(last.op.i), "stroke-width": 1.5, "stroke-dasharray": "5 5", opacity: .8 }, g);
+  }
+  // planes, back to front by their middle; during back-substitution the planes in use stand out
+  const focus = bs === 0 ? [0, 1, 2] : bs === 1 ? [2] : bs === 2 ? [1, 2] : [0, 1, 2];
+  const order = [0, 1, 2].filter(i => polys[i]).sort((a, b) => P.depth(polys[b].c) - P.depth(polys[a].c));
+  for (const i of order) {
+    const on = focus.includes(i);
+    el("polygon", { points: polys[i].pts.map(p => P.px(p).join(",")).join(" "), fill: rowColor(i), "fill-opacity": on ? 0.2 : 0.06,
+      stroke: rowColor(i), "stroke-width": on ? 1.8 : 1, "stroke-opacity": on ? 0.95 : 0.35 }, g);
+  }
+  R.forEach((r, i) => { if (!polys[i] && !near0(Math.hypot(r[0], r[1], r[2]))) missing.push("Row " + (i + 1)); });
+  // back-substitution, second step: the line where Row 2 and Row 3 meet (no other overlays)
+  const strip = (L, color, w, dotted) => {
+    const [p, q] = [P.px(L[0]), P.px(L[1])];
+    el("line", { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: color, "stroke-width": w, "stroke-linecap": "round", "stroke-dasharray": dotted ? "0.1 8" : null }, g);
+    // the line is an obstacle for labels
+    for (let f = 0; f <= 1.0001; f += 0.08) { const x = p[0] + f * (q[0] - p[0]), y = p[1] + f * (q[1] - p[1]); taken.push({ x: x - 3, y: y - 3, w: 6, h: 6 }); }
+  };
+  if (bs >= 2 && polys[1] && polys[2]) {
+    const m = meetLine(R[1], R[2]), L = m && clipLine(m.p, m.d);
+    if (L) strip(L, css("--dot"), 3);
+  }
+  const dots = [];
+  // the answer: one point, or a line of points
+  if (st.census.kind === "one" && inCube(st.census.x)) {
+    const [x, y] = P.px(st.census.x), solved = bs >= 3;
+    el("circle", { cx: x, cy: y, r: 6, fill: solved ? css("--dot") : css("--canvas"), stroke: solved ? css("--dot") : css("--text"), "stroke-width": 2.5 }, g);
+    dots.push([x, y]); taken.push({ x: x - 7, y: y - 7, w: 14, h: 14 });
+  } else if (st.census.kind === "one") missing.push("x");
+  let solLine = null;
+  if (st.census.kind === "line" && st.done) {
+    solLine = clipLine(st.census.p, st.census.d);
+    if (solLine) strip(solLine, css("--dot"), 4, true); // dotted, in the colour of the single answer
+  }
+  // infinitely many solutions on a plane: its outline, dotted in the same colour
+  let solPlane = null;
+  if (st.census.kind === "plane" && st.done) {
+    const k = R.findIndex(r => !near0(Math.hypot(r[0], r[1], r[2])));
+    if (k >= 0 && polys[k]) {
+      solPlane = polys[k];
+      const q = solPlane.pts.map(p => P.px(p));
+      el("polygon", { points: q.map(p => p.join(",")).join(" "), fill: "none", stroke: css("--dot"), "stroke-width": 4, "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-dasharray": "0.1 8" }, g);
+      q.forEach((a, n) => {
+        const b = q[(n + 1) % q.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]), m = Math.min(80, Math.ceil(L / 10));
+        for (let j = 0; j <= m; j++) taken.push({ x: a[0] + (b[0] - a[0]) * j / m - 3, y: a[1] + (b[1] - a[1]) * j / m - 3, w: 6, h: 6 });
+      });
+    }
+  }
+  // labels: the axis names first (fixed furniture), then the rest, most important first
+  for (const [b, name] of axes) label(svg, name, css("--muted"), [[b[0] + 10, b[1]], [b[0], b[1] - 10], [b[0] - 10, b[1]], [b[0], b[1] + 12]], taken, false, 12, null, true);
+  if (missing.length) {
+    const t = el("text", { x: 10, y: W - 10, fill: css("--muted"), "font-size": 12, class: "lbl", "pointer-events": "none" }, svg);
+    t.textContent = "Outside the view: " + (missing.length > 1 ? missing.slice(0, -1).join(", ") + " and " + missing[missing.length - 1] : missing[0]) + ". Zoom out.";
+    t.classList.add("note");
+    const b = t.getBBox(); taken.push({ x: b.x, y: b.y, w: b.width, h: b.height });
+  }
+  if (dots.length) {
+    const [x, y] = dots[0];
+    const name = bs >= 3 ? "x = " + pt(st.census.x) : "x";
+    label(svg, name, css("--text"), [[x + 12, y - 12], [x - 12, y - 12], [x + 12, y + 18], [x - 12, y + 18], [x, y - 18], [x, y + 22], [x + 34, y - 20], [x - 34, y - 20], [x + 34, y + 26], [x - 34, y + 26]].map(([a, b]) => [a + (name.length > 2 && a > x ? name.length * 3 : name.length > 2 && a < x ? -name.length * 3 : 0), b]), taken, true, 14, name.length > 2 ? "x" : null);
+  }
+  if (solLine) {
+    const [p, q] = [P.px(solLine[0]), P.px(solLine[1])], cands = [];
+    for (const f of [0.2, 0.8, 0.35, 0.65]) cands.push([p[0] + f * (q[0] - p[0]), p[1] + f * (q[1] - p[1]) - 12], [p[0] + f * (q[0] - p[0]), p[1] + f * (q[1] - p[1]) + 16]);
+    label(svg, "solutions", css("--dot"), cands, taken, true, 12.5);
+  }
+  if (solPlane) label(svg, "solutions", css("--dot"), polyCands(P, solPlane), taken, true, 12.5);
+  [0, 1, 2].filter(i => polys[i]).forEach(i => {
+    const name = "Row " + (i + 1) + (bs >= 1 && i === 2 ? ": x₃ = " + nf(st.census.x[2]) : "");
+    label(svg, name, rowColor(i), polyCands(P, polys[i]), taken, true, 13, name.length > 5 ? "Row " + (i + 1) : null);
+  });
+  if (bs >= 2) {
+    const m = meetLine(R[1], R[2]), L = m && clipLine(m.p, m.d);
+    if (L) {
+      const [p, q] = [P.px(L[0]), P.px(L[1])], cands = [];
+      for (const f of [0.15, 0.85, 0.3, 0.7]) cands.push([p[0] + f * (q[0] - p[0]), p[1] + f * (q[1] - p[1]) - 12], [p[0] + f * (q[0] - p[0]), p[1] + f * (q[1] - p[1]) + 16]);
+      label(svg, `x₂ = ${nf(st.census.x[1])}, x₃ = ${nf(st.census.x[2])}`, css("--dot"), cands, taken, false, 12.5);
+    }
+  }
+  if (ghost) label(svg, "old Row " + (last.op.i + 1), rowColor(last.op.i), polyCands(P, ghost), taken, false, 12);
+}
+
+// ---------- panel ----------
+function setText(id, s, cls) {
+  const n = $(id);
+  if (n.textContent !== s) n.textContent = s; // live regions speak only when their text changes
+  if (cls !== undefined && n.className !== cls) n.className = cls;
+}
+function rowEq(r) { return terms(r.slice(0, 3), XN) + " = " + nf(r[3]); }
+function shapeNote(r, i) {
+  const z = [0, 1, 2].filter(k => near0(r[k]));
+  if (z.length === 3) return "";
+  if (z.length === 2) return `Row ${i + 1} has only ${XN[[0, 1, 2].find(k => !z.includes(k))]} now, so its plane ${z.includes(2) ? "stands upright, square to that axis" : "is level"}.`;
+  if (z.length === 1) return `Row ${i + 1} has no ${XN[z[0]]} now, so its plane runs along the ${XN[z[0]]} direction.`;
+  return "";
+}
+function words(st) {
+  const R = st.R, last = S.hist.length ? S.hist[S.hist.length - 1] : null, mv = st.move, cs = st.census;
+  let big = "", small = "", warn = false, cap = "";
+  const zeroRows = R.map((r, i) => [r, i]).filter(([r]) => near0(Math.hypot(r[0], r[1], r[2])));
+  if (st.canBack && S.bs > 0) {
+    const x = cs.x;
+    big = S.bs === 1 ? `x₃ = ${nf(x[2])}` : S.bs === 2 ? `x₂ = ${nf(x[1])} and x₃ = ${nf(x[2])}` : "x = " + pt(x);
+    small = S.bs < 3 ? "Keep going up the rows." : "Elimination changed the planes but never moved x.";
+    cap = S.bs === 1 ? `Row 3's plane is level: every point on it has x₃ = ${nf(x[2])}.`
+      : S.bs === 2 ? `Row 2 and Row 3 meet in a line. Every point on it has x₂ = ${nf(x[1])} and x₃ = ${nf(x[2])}.`
+      : "Row 1's plane crosses that line at one point, x.";
+  } else if (mv.type === "done" && zeroRows.length) {
+    const [r, i] = zeroRows[zeroRows.length - 1];
+    if (!near0(r[3])) { big = `Row ${i + 1} is now 0 = ${nf(r[3])}. No point makes that true.`; small = "So the system has no solution. No point lies on all three planes."; }
+    else if (cs.kind === "line") { big = `Row ${i + 1} is now 0 = 0, a row of zeros.`; small = `It holds everywhere, so Row ${i + 1} added nothing. The planes share a line, and every point on it is a solution.`; }
+    else if (cs.kind === "plane") { big = "Two rows are now 0 = 0."; small = "All three equations describe one plane. Every point on it is a solution."; }
+    else if (cs.kind === "none") { big = "A row now reads 0 = a nonzero number."; small = "So the system has no solution."; }
+    else { big = "Every row is 0 = 0."; small = "Every point in space works."; }
+    warn = true;
+  } else if (mv.type === "done") {
+    big = "Zeros below the diagonal: upper triangular.";
+    small = st.canBack ? "Now back-substitute, starting from Row 3." : "";
+  } else if (!last) {
+    big = cs.kind === "one" ? "Three planes, one shared point: x." : cs.kind === "line" ? "Three planes that share a line."
+      : cs.kind === "plane" ? "All three equations describe one plane." : cs.kind === "all" ? "Every equation is 0 = 0." : "Three planes with no point in common.";
+    small = "Make zeros below the diagonal, one row operation at a time.";
+  } else if (last.op.type === "swap") {
+    big = `Rows ${last.op.a + 1} and ${last.op.b + 1} swapped places.`;
+    small = "The planes did not move. Only their names changed.";
+  } else {
+    const { i, r, j, m } = last.op, v = R[i][j];
+    if (near0(v)) { big = `Row ${i + 1} now has 0${XN[j]}.` + (cs.kind === "one" ? " Its plane changed and still passes through x." : ""); small = shapeNote(R[i], i); }
+    else { big = `That step is legal, but Row ${i + 1} still has ${nf(v)} in the ${XN[j]} column.`; small = (cs.kind === "one" ? "Its plane changed and still passes through x." : "Its plane changed.") + " Undo, or subtract again."; warn = true; }
+  }
+  if (!cap) {
+    if (last && last.op.type === "clear" && !(st.canBack && S.bs > 0)) {
+      const { i, r, m } = last.op;
+      cap = `Wherever Row ${i + 1} and Row ${r + 1} were both true, Row ${i + 1} − ${nfP(m)} × Row ${r + 1} is true too. So the new plane keeps every point the two planes shared` + (cs.kind === "one" ? ", including x." : ".");
+    } else if (last && last.op.type === "swap") cap = "A swap only reorders the equations. Every plane stays where it was.";
+    else cap = cs.kind === "one" ? "x lies on all three planes. Drag to turn the picture." : cs.kind === "line" ? "The three planes meet along one line." : cs.kind === "none" ? "No point lies on all three planes." : cs.kind === "plane" ? "The three equations describe the same plane." : "";
+  }
+  setText("vbig", big); setText("vsmall", small, "small" + (warn ? " warn" : "")); setText("cap", cap);
+}
+function table(st) {
+  const R = st.R, mv = st.move, last = S.hist.length ? S.hist[S.hist.length - 1] : null;
+  const pivotCols = {}; (mv.pivots || []).forEach(([r, j]) => { pivotCols[j] = r; });
+  let html = "";
+  R.forEach((row, i) => {
+    html += `<tr><th class="rh r${i + 1}">Row ${i + 1}</th>`;
+    row.forEach((v, k) => {
+      let cls = k === 3 ? "rs" : "";
+      if (k < 3 && i === k) cls += " diag";
+      if (k < 3 && mv.type === "clear" && i === mv.i && k === mv.j) cls += " target";
+      else if (k < 3 && mv.type === "swap" && i === mv.a && k === mv.j) cls += " stuck";
+      else if (k < 3 && pivotCols[k] !== undefined && i > pivotCols[k] && near0(v)) cls += " zero";
+      const w = last && last.op.type === "clear" && last.op.i === i && !(st.canBack && S.bs > 0)
+        ? `${nf(last.before[i][k])} − ${nfP(last.op.m)} × ${nfP(last.before[last.op.r][k])}` : "";
+      html += `<td class="${cls.trim()}"><span class="n">${nf(v)}</span><span class="w">${w}</span></td>`;
+    });
+    html += "</tr>";
+  });
+  $("tbody").innerHTML = html;
+}
+let opKey = "";
+function prompt(st) {
+  const mv = st.move, R = st.R, line = $("opline");
+  const key = JSON.stringify(mv) + S.hist.length;
+  if (mv.type === "clear") {
+    setText("prompt", `Clear the ${nf(R[mv.i][mv.j])} in Row ${mv.i + 1}, ${XN[mv.j]} column, using Row ${mv.r + 1}.`, "prompt");
+    if (key !== opKey) {
+      line.innerHTML = `<span>Row ${mv.i + 1} − </span><input id="mult" inputmode="decimal" aria-label="How many Row ${mv.r + 1}s to subtract"><span> × Row ${mv.r + 1}</span>` +
+        `<button id="apply" class="cta" disabled>Apply</button><button id="hintBtn">Hint</button>`;
+      const inp = $("mult");
+      inp.addEventListener("input", () => {
+        const v = parseNum(inp.value);
+        inp.classList.toggle("bad", v === null && inp.value.trim() !== "" && inp.value.trim() !== "-");
+        $("apply").disabled = v === null;
+      });
+      inp.addEventListener("blur", () => { if (parseNum(inp.value) === null) { inp.value = ""; inp.classList.remove("bad"); $("apply").disabled = true; } });
+      inp.addEventListener("keydown", e => { if (e.key === "Enter" && !$("apply").disabled) $("apply").click(); });
+      $("apply").addEventListener("click", () => {
+        const v = parseNum(inp.value); if (v === null) return;
+        if (applyOp({ type: "clear", i: mv.i, r: mv.r, j: mv.j, m: v })) render(); else setText("hint", "That number makes the table too large to show. Try a smaller one.", "hint");
+        const n = $("mult"); if (n) n.focus();
+      });
+      $("hintBtn").addEventListener("click", () => { S.hint = true; render(); });
+    }
+    const a = R[mv.i][mv.j], p = R[mv.r][mv.j];
+    setText("hint", S.hint ? `Divide the number to clear by Row ${mv.r + 1}'s ${mv.j === mv.r ? "diagonal" : XN[mv.j]} number:${nf(a)} ÷ ${nfP(p)} = ${nf(a / p)}.` : "", "hint");
+  } else if (mv.type === "swap") {
+    setText("prompt", `Row ${mv.a + 1} has 0 ${mv.j === mv.a ? "on the diagonal" : "in the " + XN[mv.j] + " column"}, so no multiple of it can clear the ${XN[mv.j]} below it.`, "prompt");
+    if (key !== opKey) {
+      line.innerHTML = `<button id="swapBtn" class="cta">Swap Row ${mv.a + 1} and Row ${mv.b + 1}</button>`;
+      $("swapBtn").addEventListener("click", () => { applyOp({ type: "swap", a: mv.a, b: mv.b }); render(); });
+    }
+    setText("hint", "", "hint");
+  } else {
+    setText("prompt", "Every number below the diagonal is 0.", "prompt");
+    if (key !== opKey) line.innerHTML = "";
+    setText("hint", "", "hint");
+  }
+  opKey = key;
+  $("steplist").innerHTML = S.hist.length
+    ? S.hist.map(h => `<li>${h.op.type === "swap" ? `Swap Row ${h.op.a + 1} and Row ${h.op.b + 1}` : `Row ${h.op.i + 1} − ${nfP(h.op.m)} × Row ${h.op.r + 1}`}</li>`).join("")
+    : `<li class="none" style="list-style:none;margin-left:-22px">None yet.</li>`;
+  $("undo").disabled = !S.hist.length; $("restart").disabled = !S.hist.length;
+}
+function backSub(st) {
+  const on = st.canBack, R = st.R;
+  $("card2").classList.toggle("off", !on);
+  $("bsNext").disabled = !on || S.bs >= 3; $("bsBack").disabled = !on || S.bs <= 0;
+  const labels = ["Row 3 gives x₃", "Row 2 gives x₂", "Row 1 gives x₁"];
+  $("bsNext").textContent = on && S.bs < 3 ? "Next: " + labels[S.bs] : "Next";
+  const out = ["", "", ""];
+  if (!on) out[0] = st.move.type === "done" ? "There is no single point to find." : "Finish Step 1 first.";
+  else {
+    const x = st.census.x;
+    // each row, with the unknowns already found put in as numbers
+    const sub = (i, j) => {
+      const known = [0, 1, 2].filter(k => k > j && !near0(R[i][k]));
+      const lhs = coef(R[i][j], XN[j]) + known.map(k => { const t = R[i][k] * x[k]; return near0(t) ? "" : (t < 0 ? " − " : " + ") + nf(Math.abs(t)); }).join("");
+      const given = [0, 1, 2].filter(k => k > j).map(k => `${XN[k]} = ${nf(x[k])}`).join(", ");
+      const done = lhs === XN[j] ? "." : `, so ${XN[j]} = ${nf(x[j])}.`;
+      return `Row ${i + 1}` + (given ? ` with ${given}` : "") + `: ${lhs} = ${nf(R[i][3])}${done}`;
+    };
+    if (S.bs >= 1) out[0] = sub(2, 2);
+    if (S.bs >= 2) out[1] = sub(1, 1);
+    if (S.bs >= 3) out[2] = sub(0, 0);
+    if (S.bs === 0) out[0] = "Row 3 has only x₃, so start there.";
+  }
+  out.forEach((s, k) => setText("bs" + (k + 1), s, "read" + (on && S.bs > 0 ? "" : " muted")));
+}
+
+// ---------- inputs ----------
+function buildInputs() {
+  let h = "";
+  for (let i = 0; i < 3; i++) {
+    h += `<div class="eq"><span class="rl r${i + 1}">Row ${i + 1}</span>`;
+    for (let k = 0; k < 4; k++) {
+      h += `<input id="in${i}${k}" inputmode="decimal" aria-label="Row ${i + 1}, ${k < 3 ? "number in front of " + XN[k] : "right side"}">`;
+      h += `<span class="v">${k < 3 ? XN[k] + (k < 2 ? " +" : " =") : ""}</span>`;
+    }
+    h += "</div>";
+  }
+  $("eqs").innerHTML = h;
+  for (let i = 0; i < 3; i++) for (let k = 0; k < 4; k++) {
+    const n = $(`in${i}${k}`);
+    n.addEventListener("input", () => {
+      const v = parseNum(n.value);
+      n.classList.toggle("bad", v === null && n.value.trim() !== "" && n.value.trim() !== "-");
+      if (v === null) return;
+      RAW[`${i}${k}`] = n.value.trim();
+      S.rows0[i][k] = v; S.hist = []; S.bs = 0; S.hint = false; fitView(); render();
+    });
+    n.addEventListener("blur", syncInputs);
+  }
+}
+// What the student typed in each equation box, so a rounded display never stands in for it ("1/13" stays "1/13").
+const RAW = {};
+function fieldText(v) { const t = nf(v); return t.startsWith("≈") ? String(+v.toPrecision(6)) : t; }
+function syncInputs() {
+  for (let i = 0; i < 3; i++) for (let k = 0; k < 4; k++) {
+    const n = $(`in${i}${k}`), raw = RAW[`${i}${k}`], v = S.rows0[i][k];
+    if (document.activeElement !== n) { n.value = raw !== undefined && parseNum(raw) !== null && Math.abs(parseNum(raw) - v) < 1e-12 ? raw : fieldText(v); n.classList.remove("bad"); }
+  }
+}
+// Choose a starting angle that shows every plane well, before and after elimination: no plane
+// should be seen edge-on.
+function autoFinish(R0) {
+  let R = R0.map(r => r.slice());
+  for (let n = 0; n < 6; n++) {
+    const mv = nextMove(R);
+    if (mv.type === "done") break;
+    if (mv.type === "swap") [R[mv.a], R[mv.b]] = [R[mv.b], R[mv.a]];
+    else { const m = R[mv.i][mv.j] / R[mv.r][mv.j]; for (let k = 0; k < 4; k++) R[mv.i][k] = clean(R[mv.i][k] - m * R[mv.r][k]); }
+  }
+  return R;
+}
+function bestView() {
+  const ns = S.rows0.concat(autoFinish(S.rows0)).map(r => r.slice(0, 3)).filter(n => Math.hypot(...n) > 1e-9).map(n => n.map(v => v / Math.hypot(...n)));
+  let best = null;
+  for (let yaw = -1.25; yaw <= -0.25; yaw += 0.05) for (let pitch = 0.3; pitch <= 0.85; pitch += 0.05) {
+    const v = [Math.sin(yaw) * Math.cos(pitch), Math.cos(yaw) * Math.cos(pitch), -Math.sin(pitch)];
+    const sc = Math.min(...ns.map(n => Math.abs(dot3(n, v)))) - 0.03 * Math.abs(pitch - 0.45) - 0.01 * Math.abs(yaw + 0.55);
+    if (!best || sc > best.sc) best = { sc, yaw, pitch };
+  }
+  if (best) { VW.yaw = best.yaw; VW.pitch = best.pitch; VW.score = best.sc; }
+}
+function fitView() {
+  bestView();
+  const cs = census(S.rows0);
+  const far = cs.kind === "one" ? Math.max(...cs.x.map(Math.abs)) : cs.kind === "line" ? Math.max(...cs.p.map(Math.abs)) : 0;
+  VW.R = Math.max(4, Math.min(10, Math.ceil(far + 1))); VW.c = [0, 0, 0];
+  $("zoom").value = -VW.R;
+}
+// A random problem with whole numbers throughout: build the triangular rows U first, then
+// add whole-number multiples of the rows above (the multipliers the student will find).
+// So the coefficients, every multiplier, every number met on the way and the answer are all
+// whole numbers. About one problem in four lands a 0 on the diagonal and needs a swap.
+const rint = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const rnz = (lo, hi) => { let v = 0; while (v === 0) v = rint(lo, hi); return v; };
+function randomProblem() {
+  for (let tries = 0; tries < 500; tries++) {
+    const x = [0, 1, 2].map(() => (Math.random() < 0.1 ? 0 : rnz(-3, 3)));
+    if (x.every(v => v === 0)) continue;
+    const piv = () => [1, -1, 1, 2, -2, 3][rint(0, 5)];
+    const U = [[piv(), rint(-3, 3), rint(-3, 3)], [0, piv(), rint(-3, 3)], [0, 0, piv()]];
+    const swap = Math.random() < 0.25;
+    let A;
+    if (!swap) {
+      const l21 = rnz(-3, 3), l31 = rnz(-3, 3), l32 = rnz(-2, 2);
+      A = [U[0], U[0].map((v, k) => l21 * v + U[1][k]), U[0].map((v, k) => l31 * v + l32 * U[1][k] + U[2][k])];
+    } else {
+      // after clearing column 1, Row 2 has no x₂ but Row 3 does
+      const l21 = rnz(-3, 3), l31 = rnz(-3, 3);
+      const r2 = [0, 0, piv()], r3 = [0, piv(), rint(-3, 3)];
+      A = [U[0], U[0].map((v, k) => l21 * v + r2[k]), U[0].map((v, k) => l31 * v + r3[k])];
+    }
+    if (A.some(r => r.some(v => Math.abs(v) > 9))) continue;
+    if (A.flat().filter(v => v === 0).length > 2) continue;
+    const b = A.map(r => r[0] * x[0] + r[1] * x[1] + r[2] * x[2]);
+    if (b.some(v => Math.abs(v) > 30)) continue;
+    return A.map((r, i) => r.concat([b[i]]));
+  }
+  return PRESETS.basic.map(r => r.slice());
+}
+function newRandom() {
+  S.rows0 = randomProblem(); S.hist = []; S.bs = 0; S.hint = false;
+  fitView(); syncInputs(); render();
+}
+buildInputs();
+$("random").addEventListener("click", newRandom);
+$("random2").addEventListener("click", newRandom);
+document.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", () => {
+  S.rows0 = PRESETS[b.dataset.p].map(r => r.slice()); S.hist = []; S.bs = 0; S.hint = false;
+  fitView(); syncInputs(); render();
+}));
+$("undo").addEventListener("click", () => { S.hist.pop(); S.bs = 0; S.hint = false; render(); });
+$("restart").addEventListener("click", () => { S.hist = []; S.bs = 0; S.hint = false; render(); });
+$("bsNext").addEventListener("click", () => { S.bs = Math.min(3, S.bs + 1); render(); });
+$("bsBack").addEventListener("click", () => { S.bs = Math.max(0, S.bs - 1); render(); });
+$("zoom").addEventListener("input", e => { VW.R = -e.target.value; draw(); });
+$("resetView").addEventListener("click", () => { fitView(); draw(); });
+
+// ---------- turning and zooming the picture ----------
+// One finger or the mouse turns the picture; two fingers pinch to zoom; ctrl + wheel zooms.
+(function attachTurn(svg) {
+  const ptrs = new Map();
+  let start = null, pinch = null;
+  const setR = R => { VW.R = Math.max(2, Math.min(10, R)); $("zoom").value = -VW.R; draw(); };
+  svg.addEventListener("pointerdown", e => {
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { svg.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
+    e.preventDefault();
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), R: VW.R }; start = null; return; }
+    if (ptrs.size === 1) start = { x: e.clientX, y: e.clientY, yaw: VW.yaw, pitch: VW.pitch };
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId) || !Number.isFinite(e.clientX)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (d > 4 && pinch.d > 4) setR(pinch.R * pinch.d / d); return; }
+    if (!start) return;
+    const w = svg.getBoundingClientRect().width || 400;
+    VW.yaw = start.yaw + (e.clientX - start.x) / w * 3.2;
+    VW.pitch = Math.max(-0.2, Math.min(1.45, start.pitch + (e.clientY - start.y) / w * 3.2));
+    draw();
+  });
+  const end = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; start = null; };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("wheel", e => { if (!e.ctrlKey) return; e.preventDefault(); setR(VW.R * Math.exp(e.deltaY * 0.01)); }, { passive: false });
+})($("fig"));
+
+// ---------- render ----------
+let ST = null;
+function analyze() {
+  const R = rows(), move = nextMove(R), cs = census(S.rows0);
+  return { R, move, census: cs, done: move.type === "done", canBack: move.type === "done" && cs.kind === "one" };
+}
+function draw() { drawFig(ST); }
+function render() { ST = analyze(); words(ST); table(ST); prompt(ST); backSub(ST); drawFig(ST); }
+fitView(); syncInputs(); render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render());
+</script>
+</body>
+</html>
