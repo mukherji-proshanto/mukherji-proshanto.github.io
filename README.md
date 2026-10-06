@@ -11,6 +11,7 @@ just as well opened straight off disk.
 | --- | --- | --- |
 | Roots Ring | Analytic Geometry, Unit 2 (nth roots) | `/roots-ring/` |
 | Rows and Columns in Motion | Linear Algebra (Ax = b by rows and by columns) | `/rows-and-columns/` |
+| Shape Through a Matrix | Linear Algebra, Unit 5 (a matrix moves a whole shape) | `/shape-through-a-matrix/` |
 
 ## Notation
 

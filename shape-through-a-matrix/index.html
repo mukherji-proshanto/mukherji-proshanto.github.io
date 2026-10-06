@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shape Through a Matrix</title>
+<style>
+  :root {
+    --text: #2C2C2B; --muted: #6F6C67; --canvas: #FFFFFF; --soft: #F9F8F7;
+    --surface2: #F0EFED; --border: #E6E5E3; --accent: #2783DE; --accent-soft: #E5F2FC;
+    --col1: #2F8A57; --col2: #D14B45; --warn: #B5641F; --grid0: #E6E5E3; --old: #8E8B86; --new: #2783DE;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #FFFFFF; --muted: rgba(255,255,255,.65); --canvas: #191919; --soft: #202020;
+      --surface2: #2A2A29; --border: rgba(255,255,255,.20); --accent: #5E9FE8; --accent-soft: rgba(94,159,232,.12);
+      --col1: #72BC8F; --col2: #E97366; --warn: #DE9255; --grid0: #2E2E2D; --old: #9C9994; --new: #5E9FE8;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  .grp { display: contents; }
+  body { margin: 0; background: var(--canvas); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 16px 20px 20px; }
+  .verdict { margin: 0 0 12px; min-height: 58px; }
+  .verdict .big { font-size: 22px; font-weight: 650; letter-spacing: -.01em; margin: 0; font-variant-numeric: tabular-nums; }
+  .verdict .small { font-size: 15px; color: var(--muted); margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+  .verdict .small.warn { color: var(--warn); font-weight: 600; }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px; align-items: start; }
+  .left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  @media (max-width: 820px) {
+    .main { grid-template-columns: 1fr; } .main .left { display: contents; }
+    .right { order: 1; } #cardM { order: 2; } #cardS { order: 3; } #cardT { order: 4; }
+  }
+  .card { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .card h2 { font-size: 16px; margin: 0 0 8px; font-weight: 650; }
+  .mat { display: flex; align-items: center; gap: 10px; margin: 2px 0 6px; }
+  .mat .A { font-size: 20px; font-weight: 650; }
+  .br { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px 8px; flex: 1; min-width: 0;
+    border-left: 2px solid var(--text); border-right: 2px solid var(--text); border-radius: 6px; }
+  .br input { width: 100%; min-width: 0; height: 40px; text-align: center; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--canvas); border: 1px solid var(--border); border-radius: 8px; padding: 0 4px; }
+  .br input.c1 { background: rgba(47,138,87,.08); } .br input.c2 { background: rgba(209,75,69,.08); }
+  input.bad { border-color: var(--col2) !important; box-shadow: 0 0 0 1px var(--col2); }
+  .vals { font-size: 13px; color: var(--muted); margin: 0 0 6px; min-height: 19px; font-variant-numeric: tabular-nums; }
+  .err { font-size: 13px; color: var(--warn); font-weight: 600; margin: 0 0 6px; min-height: 0; }
+  .err:empty { display: none; }
+  .sl { display: grid; grid-template-columns: 22px 1fr 64px; align-items: center; gap: 8px; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+  .sl b { font-size: 16px; } .sl input[type=range] { width: 100%; min-width: 0; accent-color: var(--accent); }
+  .sl output { text-align: right; font-weight: 650; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .lbl-s { font-size: 12px; color: var(--muted); }
+  button { font: inherit; font-size: 13px; color: var(--text); background: var(--soft); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; min-height: 36px; cursor: pointer; }
+  button:hover { background: var(--surface2); }
+  button.key { min-width: 44px; font-size: 14px; }
+  button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 650; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea { width: 100%; min-height: 74px; resize: vertical; font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text);
+    background: var(--canvas); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .chk input { width: 16px; height: 16px; accent-color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  td, th { padding: 4px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--soft); }
+  tr.sel td { background: var(--accent-soft); }
+  .work { font-size: 13px; color: var(--muted); margin: 8px 0 0; font-variant-numeric: tabular-nums; }
+  .more { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  svg.fig { width: 100%; height: auto; display: block; touch-action: none; user-select: none; cursor: move; border-radius: 8px; }
+  .cap { font-size: 14px; color: var(--muted); margin: 8px 0 0; min-height: 21px; }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .ctl input[type=range] { width: 130px; accent-color: var(--accent); }
+  .ctl button { min-height: 30px; padding: 3px 8px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="verdict" aria-live="polite">
+    <p class="big" id="vbig"></p>
+    <p class="small" id="vsmall"></p>
+  </div>
+  <div class="main">
+    <div class="left">
+      <section class="card" id="cardM" aria-labelledby="h-m">
+        <h2 id="h-m">The matrix</h2>
+        <div class="mat">
+          <span class="A">A =</span>
+          <div class="br" role="group" aria-label="Matrix A">
+            <input id="m0" class="c1" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="A, row 1, column 1">
+            <input id="m1" class="c2" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="A, row 1, column 2">
+            <input id="m2" class="c1" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="A, row 2, column 1">
+            <input id="m3" class="c2" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="A, row 2, column 2">
+          </div>
+        </div>
+        <p class="err" id="merr" aria-live="polite"></p>
+        <p class="vals" id="mvals"></p>
+        <div class="row" role="group" aria-label="Type into the box you are in">
+          <span class="lbl-s">Type:</span>
+          <button class="key" data-ins="θ">θ</button><button class="key" data-ins="sin θ">sin θ</button><button class="key" data-ins="cos θ">cos θ</button><button class="key" data-ins="−">−</button><button class="key" data-ins="√(">√</button>
+        </div>
+        <div class="row" role="group" aria-label="Example matrices">
+          <span class="lbl-s">Try:</span>
+          <button data-m="stretch">Stretch</button>
+          <button data-m="rot">Rotate by θ</button>
+          <button data-m="refl">Reflect in a line</button>
+          <button data-m="proj">Project onto a line</button>
+          <button data-m="shear">Shear</button>
+        </div>
+        <div class="sl" id="throw" hidden><b>θ</b><input type="range" id="th" min="-180" max="180" step="1" aria-label="The angle θ"><output id="tho"></output></div>
+        <div class="row" id="angrow" hidden>
+          <button id="sweep" aria-pressed="false" hidden>Sweep θ</button>
+          <span class="grp" id="angs" hidden>
+            <span class="lbl-s">Angles in</span>
+            <button id="deg" aria-pressed="true">degrees</button><button id="rad" aria-pressed="false">radians</button>
+          </span>
+        </div>
+      </section>
+
+      <section class="card" id="cardS" aria-labelledby="h-s">
+        <h2 id="h-s">The shape</h2>
+        <textarea id="pts" spellcheck="false" aria-label="The shape's points, as (x, y) pairs"></textarea>
+        <p class="err" id="serr" aria-live="polite"></p>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="closed" checked> Join the last point to the first</label>
+        </div>
+        <div class="row" role="group" aria-label="Example shapes">
+          <span class="lbl-s">Try:</span>
+          <button data-s="F">Letter F</button>
+          <button data-s="sq">Unit square</button>
+          <button data-s="tri">Triangle</button>
+          <button data-s="house">House</button>
+          <button data-s="circ">Circle</button>
+        </div>
+      </section>
+
+      <section class="card" id="cardT" aria-labelledby="h-t">
+        <h2 id="h-t">Where each point goes</h2>
+        <table><thead><tr><th>Point</th><th>Before</th><th>After</th></tr></thead><tbody id="tb"></tbody></table>
+        <p class="more" id="more"></p>
+        <p class="work" id="work"></p>
+      </section>
+    </div>
+
+    <div class="right">
+      <svg class="fig" id="fig" viewBox="0 0 400 400" role="img" aria-label="The shape before and after the matrix"></svg>
+      <p class="cap" id="cap" aria-live="polite"></p>
+      <div class="ctl">
+        <span>Zoom (or pinch)</span><input type="range" id="zoom" min="-40" max="-1" step="0.1" aria-label="Zoom">
+        <button id="fit">Fit the view</button>
+        <label class="chk"><input type="checkbox" id="cols"> Show the columns</label>
+        <label class="chk"><input type="checkbox" id="grid"> Show the grid moving</label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const W = 400, EPS = 1e-9, LIMIT = 1000, NS = "http://www.w3.org/2000/svg";
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el = (tag, attrs, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+function fmt(v) {
+  if (!Number.isFinite(v)) return "?";
+  if (Math.abs(v) < 1e-9) return "0";
+  const s = v < 0 ? "−" : "", a = Math.abs(v);
+  if (Math.abs(Math.round(a * 100) / 100 - a) < 1e-9) return s + String(Math.round(a * 100) / 100);
+  for (let d = 3; d <= 12; d++) { const n = Math.round(a * d); if (Math.abs(n / d - a) < 1e-9) return s + n + "/" + d; }
+  return "≈" + s + String(Math.round(a * 100) / 100);
+}
+const pt = v => `(${fmt(v[0])}, ${fmt(v[1])})`;
+
+// ---------- reading what the student types ----------
+// Numbers, + − × ÷ ^, brackets, θ (or t, theta), π, sin, cos, tan, √/sqrt.
+// "2cos θ", "sin 2θ", "sin^2 θ" and "−sin(θ)" all work. Trig uses degrees or radians as chosen.
+const FUNCS = { sin: 1, cos: 1, tan: 1, sqrt: 1, abs: 1 };
+function tokenize(s) {
+  s = s.replace(/[−–]/g, "-").replace(/[×·*]/g, "*").replace(/÷/g, "/").replace(/²/g, "^2").replace(/³/g, "^3").replace(/√/g, "sqrt");
+  const out = [];
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (/\s/.test(ch)) { i++; continue; }
+    if (/[0-9.]/.test(ch)) { const m = s.slice(i).match(/^(\d+\.?\d*|\.\d+)/); if (!m) throw new Error(`I can't read "${s.slice(i, i + 3)}".`); if (out.length && out[out.length - 1].t === "num" && !out[out.length - 1].k) throw new Error("Two numbers sit side by side. Put an operation between them."); out.push({ t: "num", v: +m[1] }); i += m[1].length; continue; }
+    if (/[a-zA-Zθπ]/.test(ch)) {
+      const m = s.slice(i).match(/^(sqrt|sin|cos|tan|abs|theta|pi|θ|π|[a-zA-Z])/i);
+      const w = m[1].toLowerCase(); i += m[1].length;
+      if (FUNCS[w]) out.push({ t: "fn", v: w });
+      else if (w === "θ" || w === "theta" || w === "t") out.push({ t: "var" });
+      else if (w === "π" || w === "pi") out.push({ t: "num", v: Math.PI, k: "pi" });
+      else throw new Error(`"${m[1]}" isn't something I know. Use θ, sin, cos, tan, √ or π.`);
+      continue;
+    }
+    if ("+-*/^()".includes(ch)) { out.push({ t: ch }); i++; continue; }
+    throw new Error(`I can't read "${ch}".`);
+  }
+  return out;
+}
+// Returns { f: (θ, deg) => value, usesTheta }.
+function compile(src) {
+  const tk = tokenize(String(src));
+  if (!tk.length) throw new Error("This box is empty.");
+  let i = 0, uses = false, trigSeen = false;
+  const peek = () => tk[i], take = t => { if (tk[i] && tk[i].t === t) { i++; return true; } return false; };
+  const startsPrimary = x => x && (x.t === "num" || x.t === "var" || x.t === "fn" || x.t === "(");
+  function expr() {
+    let f = term();
+    for (;;) {
+      if (take("+")) { const a = f, b = term(); f = (x, d) => a(x, d) + b(x, d); }
+      else if (take("-")) { const a = f, b = term(); f = (x, d) => a(x, d) - b(x, d); }
+      else return f;
+    }
+  }
+  function term() {
+    let f = unary();
+    for (;;) {
+      if (take("*")) { const a = f, b = unary(); f = (x, d) => a(x, d) * b(x, d); }
+      else if (take("/")) { const a = f, b = unary(); f = (x, d) => a(x, d) / b(x, d); }
+      else if (startsPrimary(peek())) { const a = f, b = power(); f = (x, d) => a(x, d) * b(x, d); } // 2θ, 2 cos θ, sin θ cos θ
+      else return f;
+    }
+  }
+  function unary() {
+    if (take("-")) { const a = unary(); return (x, d) => -a(x, d); }
+    if (take("+")) return unary();
+    return power();
+  }
+  function power() {
+    const base = primary();
+    if (take("^")) { const e = unary(); return (x, d) => Math.pow(base(x, d), e(x, d)); }
+    return base;
+  }
+  function primary() {
+    const x = peek();
+    if (!x) throw new Error("Something is missing at the end.");
+    i++;
+    if (x.t === "num") { const v = x.v; return () => v; }
+    if (x.t === "var") { uses = true; return th => th; }
+    if (x.t === "(") { const f = expr(); if (!take(")")) throw new Error("A bracket is missing: add a )."); return f; }
+    if (x.t === "fn") {
+      let p = null;
+      if (take("^")) { const n = peek(); if (!n || n.t !== "num") throw new Error(`Write a number after ${x.v}^.`); i++; p = n.v; }
+      let arg;
+      if (take("(")) { arg = expr(); if (!take(")")) throw new Error("A bracket is missing: add a )."); }
+      else if (startsPrimary(peek())) {
+        // sin 2θ means sin(2θ); sin θ cos θ means sin(θ)·cos(θ)
+        arg = power();
+        while (peek() && (peek().t === "var" || (peek().t === "num" && peek().v === Math.PI))) { const a = arg, b = power(); arg = (t, d) => a(t, d) * b(t, d); }
+      } else throw new Error(`What should ${x.v} act on? Try ${x.v} θ.`);
+      const fn = x.v, trig = fn === "sin" || fn === "cos" || fn === "tan";
+      if (trig) trigSeen = true;
+      const g = (t, d) => { let v = arg(t, d); if (trig && d) v = v * Math.PI / 180; return Math[fn](v); };
+      return p === null ? g : (t, d) => Math.pow(g(t, d), p);
+    }
+    throw new Error(x.t === ")" ? "There is an extra )." : `"${x.t}" can't go there.`);
+  }
+  const f = expr();
+  if (i < tk.length) throw new Error(tk[i].t === ")" ? "There is an extra )." : "I can't read the end of this.");
+  return { f, usesTheta: uses, usesTrig: trigSeen };
+}
+
+// ---------- state ----------
+const MATS = {
+  rot: ["cos θ", "−sin θ", "sin θ", "cos θ", 30],
+  refl: ["cos 2θ", "sin 2θ", "sin 2θ", "−cos 2θ", 30],
+  proj: ["cos²θ", "sin θ cos θ", "sin θ cos θ", "sin²θ", 30],
+  shear: ["1", "1", "0", "1", 0],
+  stretch: ["2", "0", "0", "1/2", 0] };
+const F_PTS = [[0, 0], [0, 3], [2, 3], [2, 2.5], [0.5, 2.5], [0.5, 1.75], [1.5, 1.75], [1.5, 1.25], [0.5, 1.25], [0.5, 0]];
+const circ = () => Array.from({ length: 24 }, (_, k) => [Math.round(Math.cos(k * Math.PI / 12) * 100) / 100, Math.round(Math.sin(k * Math.PI / 12) * 100) / 100]);
+const SHAPES = { F: F_PTS, sq: [[0, 0], [1, 0], [1, 1], [0, 1]], tri: [[0, 0], [1, 0], [0, 1]], house: [[0, 0], [2, 0], [2, 1.5], [1, 2.5], [0, 1.5]], circ: circ() };
+const S = { src: MATS.stretch.slice(0, 4), fns: [], theta: MATS.stretch[4], deg: true, pts: F_PTS.map(p => p.slice()), sel: 0, sweep: null };
+const VW = { c: [0, 0], R: 5 };
+const good = { src: S.src.slice(), pts: "" };
+
+function compileAll() {
+  // keep the last entry that worked for each box; mark the box you're typing in if it doesn't read
+  const errs = [];
+  S.src.forEach((s, k) => {
+    try { S.fns[k] = compile(s); $("m" + k).classList.remove("bad"); good.src[k] = s; }
+    catch (e) { errs.push({ k, msg: e.message }); $("m" + k).classList.add("bad"); if (!S.fns[k]) S.fns[k] = compile(good.src[k]); }
+  });
+  return errs;
+}
+const NAMES = ["row 1, column 1", "row 1, column 2", "row 2, column 1", "row 2, column 2"];
+const usesTheta = () => S.fns.some(f => f && f.usesTheta);
+const usesTrig = () => S.fns.some(f => f && f.usesTrig);
+function matrix() { return S.fns.map(f => f.f(S.theta * (S.deg ? 1 : Math.PI / 180), S.deg)); }
+// θ is kept in degrees for the slider; in radian mode the angle given to the entries is θ in radians
+const radText = () => fmt(S.theta * Math.PI / 180).replace("≈", "");
+const angleText = () => (S.deg ? `θ = ${S.theta}°` : `θ ${fmt(S.theta * Math.PI / 180).includes("≈") ? "≈" : "="} ${radText()} rad (${S.theta}°)`);
+const clampC = v => Math.max(-2 * LIMIT, Math.min(2 * LIMIT, v)); // keeps the view where the grid can be drawn
+const apply = (M, p) => [M[0] * p[0] + M[1] * p[1], M[2] * p[0] + M[3] * p[1]];
+
+function parsePoints(text) {
+  const t = text.trim();
+  if (!t) throw new Error("Type at least one point, like (1, 2).");
+  let pairs;
+  if (t.includes("(")) {
+    const m = t.match(/\(([^()]*)\)/g);
+    if (!m) throw new Error("Write each point as (x, y).");
+    const rest = t.replace(/\(([^()]*)\)/g, "").replace(/[\s,;]/g, "");
+    if (rest) throw new Error(`I can't read "${rest.slice(0, 8)}". Write each point as (x, y).`);
+    pairs = m.map(s => s.slice(1, -1));
+  } else pairs = t.split(/[\n;]+/).map(s => s.trim()).filter(Boolean);
+  if (pairs.length > 60) throw new Error("Use at most 60 points.");
+  return pairs.map((s, n) => {
+    const xy = s.includes(",") ? s.split(",") : s.trim().split(/\s+/);
+    if (xy.length !== 2) throw new Error(`Point ${n + 1} needs exactly two numbers, x and y.`);
+    return xy.map(q => {
+      let c;
+      try { c = compile(q); } catch (e) { throw new Error(`Point ${n + 1}: I can't read "${q.trim()}". Use numbers like 1.5, -2 or 1/3.`); }
+      if (c.usesTheta) throw new Error(`Point ${n + 1} uses θ. Points need plain numbers.`);
+      const v = c.f(0, true);
+      if (!Number.isFinite(v) || Math.abs(v) > 100) throw new Error(`Point ${n + 1} is too far out. Keep coordinates between −100 and 100.`);
+      return v;
+    });
+  });
+}
+const ptsText = P => P.map(p => `(${fmt(p[0]).replace("≈", "")}, ${fmt(p[1]).replace("≈", "")})`).join(" ").replace(/−/g, "-");
+
+// ---------- what A does ----------
+// Every test compares sizes with the matrix's own size, so scaling A never changes the verdict.
+function describe(M) {
+  const [a, b, c, d] = M, n = Math.max(...M.map(Math.abs));
+  if (!M.every(Number.isFinite)) return { bad: true };
+  if (n > LIMIT) return { big: true };
+  if (n < 1e-12) return { kind: "zero", det: 0 };
+  const det = a * d - b * c, n1 = Math.hypot(a, c), n2 = Math.hypot(b, d);
+  if (n1 < EPS * n || n2 < EPS * n || Math.abs(det) < EPS * n1 * n2) return { kind: "flat", det: 0 };
+  const T = { det };
+  const ortho = Math.abs(n1 - n2) < EPS * n && Math.abs(a * b + c * d) < EPS * n * n;
+  const ang = v => { let x = v * 180 / Math.PI; if (Math.abs(x + 180) < 1e-9) x = 180; return Math.round(x * 10) / 10; };
+  if (ortho && det > 0) { T.kind = "turn"; T.s = n1; T.ang = ang(Math.atan2(c, a)); }
+  else if (ortho) { T.kind = "flip"; T.s = n1; let L = ang(Math.atan2(c, a)) / 2; if (L <= -90) L += 180; if (L > 90) L -= 180; T.line = Math.round(L * 10) / 10; }
+  else if (Math.abs(b) < EPS * n && Math.abs(c) < EPS * n) T.kind = "axes";
+  else if (Math.abs(c) < EPS * n && Math.abs(a - 1) < EPS * n && Math.abs(d - 1) < EPS * n) T.kind = "shearX";
+  else if (Math.abs(b) < EPS * n && Math.abs(a - 1) < EPS * n && Math.abs(d - 1) < EPS * n) T.kind = "shearY";
+  else T.kind = "general";
+  return T;
+}
+
+// ---------- view ----------
+function view() {
+  const R = VW.R, c = VW.c, U = W / (2 * R);
+  return { R, U, c,
+    px: ([x, y]) => [W / 2 + (x - c[0]) * U, W / 2 - (y - c[1]) * U],
+    units: ([sx, sy]) => [c[0] + (sx - W / 2) / U, c[1] - (sy - W / 2) / U],
+    inside: ([x, y]) => Math.abs(x - c[0]) <= R && Math.abs(y - c[1]) <= R };
+}
+// Frame the shape, its image, and (when A uses θ) its image for every θ, so a sweep never runs off.
+function fitView() {
+  const all = [[0, 0]].concat(S.pts);
+  const add = M => { if (M.every(Number.isFinite) && Math.max(...M.map(Math.abs)) <= LIMIT) for (const p of S.pts) all.push(apply(M, p)); };
+  if (usesTheta()) { const t0 = S.theta; for (let t = -180; t <= 180; t += 10) { S.theta = t; add(matrix()); } S.theta = t0; }
+  add(matrix());
+  if ($("cols").checked) { const M = matrix(); if (M.every(Number.isFinite) && Math.max(...M.map(Math.abs)) <= LIMIT) all.push([M[0], M[2]], [M[1], M[3]]); }
+  const xs = all.map(p => p[0]).filter(Number.isFinite), ys = all.map(p => p[1]).filter(Number.isFinite);
+  const lo = [Math.min(...xs), Math.min(...ys)], hi = [Math.max(...xs), Math.max(...ys)];
+  VW.c = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2].map(clampC);
+  VW.R = Math.max(1.5, Math.min(40, Math.max(hi[0] - lo[0], hi[1] - lo[1]) / 2 * 1.18 + 0.4));
+  $("zoom").value = -VW.R;
+}
+
+// ---------- labels (furniture first, required labels never dropped) ----------
+const OFFSETS = [[9, -9, "start"], [9, 19, "start"], [-9, -9, "end"], [-9, 19, "end"], [0, -13, "middle"], [0, 24, "middle"], [13, 5, "start"], [-13, 5, "end"]];
+const CANDS = OFFSETS.concat(OFFSETS.map(([a, b, c]) => [a * 2, b * 2, c]), OFFSETS.map(([a, b, c]) => [a * 3, b * 3, c]));
+const hit = (a, b) => a.x < b.x + b.w + 2 && b.x < a.x + a.w + 2 && a.y < b.y + b.h + 2 && b.y < a.y + a.h + 2;
+function label(svg, V, p, text, color, taken, required, size) {
+  const [x, y] = V.px(p);
+  if (!Number.isFinite(x) || !V.inside(p)) return;
+  const t = el("text", { fill: color, "font-size": size || 13, "font-weight": 650, "paint-order": "stroke", stroke: css("--soft"), "stroke-width": 4,
+    "stroke-linejoin": "round", class: "lbl", "pointer-events": "none" }, svg);
+  t.textContent = text;
+  const boxAt = ([dx, dy, anchor]) => { t.setAttribute("x", x + dx); t.setAttribute("y", y + dy); t.setAttribute("text-anchor", anchor); const b = t.getBBox(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+  for (const o of CANDS) {
+    const box = boxAt(o);
+    if (box.x >= 2 && box.y >= 2 && box.x + box.w <= W - 2 && box.y + box.h <= W - 2 && !taken.some(q => hit(box, q))) { taken.push(box); return; }
+  }
+  if (!required) { t.remove(); return; }
+  const overlap = (a, q) => Math.max(0, Math.min(a.x + a.w, q.x + q.w) - Math.max(a.x, q.x)) * Math.max(0, Math.min(a.y + a.h, q.y + q.h) - Math.max(a.y, q.y));
+  let best = null;
+  for (const o of CANDS) {
+    const b = boxAt(o), sx = Math.max(0, 2 - b.x) - Math.max(0, b.x + b.w - W + 2), sy = Math.max(0, 2 - b.y) - Math.max(0, b.y + b.h - W + 2);
+    const box = { x: b.x + sx, y: b.y + sy, w: b.w, h: b.h }, cost = taken.reduce((s, q) => s + overlap(box, q), 0);
+    if (!best || cost < best.cost) best = { cost, o, sx, sy, box };
+  }
+  t.setAttribute("x", x + best.o[0] + best.sx); t.setAttribute("y", y + best.o[1] + best.sy); t.setAttribute("text-anchor", best.o[2]);
+  taken.push(best.box);
+}
+
+// ---------- the figure ----------
+function drawFig(M, T) {
+  const svg = $("fig"), V = view(), taken = [];
+  svg.innerHTML = "";
+  const d = el("defs", {}, svg);
+  const cp = el("clipPath", { id: "clip" }, d); el("rect", { x: 0, y: 0, width: W, height: W, rx: 8 }, cp);
+  for (const n of ["col1", "col2"]) {
+    const m = el("marker", { id: "ah-" + n, viewBox: "0 0 10 10", refX: 8.5, refY: 5, markerWidth: 4, markerHeight: 4, orient: "auto-start-reverse" }, d);
+    el("path", { d: "M0,0 L10,5 L0,10 z", fill: css("--" + n) }, m);
+  }
+  el("rect", { x: 0, y: 0, width: W, height: W, rx: 8, fill: css("--soft"), class: "bg" }, svg);
+  const g = el("g", { "clip-path": "url(#clip)", "pointer-events": "none" }, svg);
+  const steps = [0.5, 1, 2, 5, 10, 20], step = steps.find(s => V.R / s <= 8) || 20;
+  const lo = [Math.floor((V.c[0] - V.R) / step) * step, Math.floor((V.c[1] - V.R) / step) * step];
+  for (let j = 0, k = lo[0]; j < 100 && k <= V.c[0] + V.R; j++, k = lo[0] + j * step) { const [p] = V.px([k, 0]); el("line", { x1: p, y1: 0, x2: p, y2: W, stroke: css("--grid0") }, g); }
+  for (let j = 0, k = lo[1]; j < 100 && k <= V.c[1] + V.R; j++, k = lo[1] + j * step) { const [, p] = V.px([0, k]); el("line", { x1: 0, y1: p, x2: W, y2: p, stroke: css("--grid0") }, g); }
+  const [ox, oy] = V.px([0, 0]);
+  el("line", { x1: 0, y1: oy, x2: W, y2: oy, stroke: css("--muted"), opacity: .45 }, g);
+  el("line", { x1: ox, y1: 0, x2: ox, y2: W, stroke: css("--muted"), opacity: .45 }, g);
+  const ok = !T.bad && !T.big;
+  // the grid, carried along by A
+  if (ok && $("grid").checked) {
+    const far = 3 * V.R + Math.hypot(...V.c), n = Math.min(60, Math.ceil(far / step));
+    for (let k = -n; k <= n; k++) for (const [p, q] of [[[k * step, -far], [k * step, far]], [[-far, k * step], [far, k * step]]]) {
+      const a = V.px(apply(M, p)), b = V.px(apply(M, q));
+      if ([...a, ...b].every(Number.isFinite)) el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: css("--new"), opacity: .22 }, g);
+    }
+  }
+  const path = P => P.map((p, k) => (k ? "L" : "M") + V.px(p).map(v => Math.max(-1e5, Math.min(1e5, v)).toFixed(2)).join(",")).join(" ") + ($("closed").checked && P.length > 2 ? " Z" : "");
+  const closedFill = $("closed").checked && S.pts.length > 2;
+  // before: grey, dashed. after: blue.
+  el("path", { d: path(S.pts), fill: closedFill ? css("--old") : "none", "fill-opacity": .12, stroke: css("--old"), "stroke-width": 2, "stroke-dasharray": "6 4", "stroke-linejoin": "round" }, g);
+  const img = ok ? S.pts.map(p => apply(M, p)) : null;
+  if (img) el("path", { d: path(img), fill: closedFill ? css("--new") : "none", "fill-opacity": .22, stroke: css("--new"), "stroke-width": 2.5, "stroke-linejoin": "round" }, g);
+  // a single point, or the corners, as small dots; the chosen point is larger on both shapes
+  const dots = (P, color) => P.forEach((p, k) => { if (!V.inside(p)) return; const [x, y] = V.px(p); el("circle", { cx: x, cy: y, r: k === S.sel ? 5.5 : (P.length > 30 ? 0 : 2.5), fill: color, stroke: k === S.sel ? css("--soft") : "none", "stroke-width": 2 }, g); });
+  dots(S.pts, css("--old"));
+  if (img) dots(img, css("--new"));
+  // the columns: where (1, 0) and (0, 1) land
+  if (ok && $("cols").checked) {
+    for (const [v, n] of [[[M[0], M[2]], "col1"], [[M[1], M[3]], "col2"]]) {
+      const [x, y] = V.px(v);
+      if (Math.hypot(x - ox, y - oy) >= 4) el("line", { x1: ox, y1: oy, x2: x, y2: y, stroke: css("--" + n), "stroke-width": 3, "stroke-linecap": "round", "marker-end": `url(#ah-${n})` }, g);
+      const [p, q] = [[ox, oy], [x, y]];
+      for (let f = 0; f <= 1.0001; f += 0.1) taken.push({ x: p[0] + f * (q[0] - p[0]) - 3, y: p[1] + f * (q[1] - p[1]) - 3, w: 6, h: 6 });
+    }
+  }
+  // the mirror line of a flip, faint and dashed
+  if (ok && T.kind === "flip") {
+    const u = [Math.cos(T.line * Math.PI / 180), Math.sin(T.line * Math.PI / 180)], k = 3 * V.R + Math.hypot(...V.c);
+    const a = V.px([-u[0] * k, -u[1] * k]), b = V.px([u[0] * k, u[1] * k]);
+    el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: css("--muted"), "stroke-width": 1.5, "stroke-dasharray": "2 5", opacity: .9 }, g);
+  }
+  // the outlines are obstacles for labels: sample each edge every 10 pixels or so
+  for (const P of [S.pts].concat(img ? [img] : [])) {
+    const n = P.length, edges = $("closed").checked && n > 2 ? n : n - 1;
+    for (let k = 0; k < Math.max(edges, 1); k++) {
+      const a = V.px(P[k]), b = V.px(P[(k + 1) % n]), L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (!Number.isFinite(L)) continue;
+      const m = Math.min(80, Math.ceil(L / 10));
+      for (let j = 0; j <= m; j++) { const x = a[0] + (b[0] - a[0]) * j / m, y = a[1] + (b[1] - a[1]) * j / m; if (x > -10 && y > -10 && x < W + 10 && y < W + 10) taken.push({ x: x - 2, y: y - 2, w: 4, h: 4 }); }
+    }
+  }
+  // labels: the note first, then the chosen point, then the names of the shapes
+  for (const P of [S.pts].concat(img ? [img] : [])) { const p = P[S.sel]; if (p && V.inside(p)) { const [x, y] = V.px(p); taken.push({ x: x - 7, y: y - 7, w: 14, h: 14 }); } }
+  const missing = [];
+  if (!S.pts.some(p => V.inside(p))) missing.push("the shape");
+  if (img && !img.some(p => V.inside(p))) missing.push("its image");
+  if (missing.length) {
+    const t = el("text", { x: 10, y: 20, fill: css("--muted"), "font-size": 12, "paint-order": "stroke", stroke: css("--soft"), "stroke-width": 4, class: "lbl", "pointer-events": "none" }, svg);
+    t.textContent = (missing.length > 1 ? "The shape and its image are" : missing[0][0].toUpperCase() + missing[0].slice(1) + " is") + " outside the view. Press Fit the view.";
+    const b = t.getBBox(); taken.push({ x: b.x, y: b.y, w: b.width, h: b.height });
+  }
+  const nm = "P" + sub(S.sel + 1);
+  label(svg, V, S.pts[S.sel], nm, css("--old"), taken, true);
+  if (img) label(svg, V, img[S.sel], nm + "′", css("--new"), taken, true);
+  if (ok && $("cols").checked) {
+    label(svg, V, [M[0], M[2]], "column 1", css("--col1"), taken, false, 12);
+    label(svg, V, [M[1], M[3]], "column 2", css("--col2"), taken, false, 12);
+  }
+  // name each shape at its highest corner that is in view
+  const top = P => P.filter(p => V.inside(p)).sort((p, q) => q[1] - p[1])[0];
+  const tb = top(S.pts); if (tb) label(svg, V, tb, "before", css("--old"), taken, false, 12);
+  if (img) { const ta = top(img); if (ta) label(svg, V, ta, "after", css("--new"), taken, false, 12); }
+}
+const sub = n => String(n).split("").map(c => "₀₁₂₃₄₅₆₇₈₉"[+c]).join("");
+
+// ---------- words ----------
+function setText(id, s, cls) {
+  const n = $(id);
+  if (n.textContent !== s) n.textContent = s;
+  if (cls !== undefined && n.className !== cls) n.className = cls;
+}
+function words(M, T, errs) {
+  const deg = v => `${fmt(v).replace("≈", "")}°`;
+  let big, small = "", warn = false;
+  if (T.bad) {
+    big = `A has no value at ${angleText()}.`; warn = true;
+    small = "One entry can't be worked out at this angle (for example, a square root of a negative number). Move θ.";
+  } else if (T.big) { big = "A is too large to draw."; small = "Keep every entry between −1000 and 1000."; warn = true; }
+  else {
+    const s = T.s !== undefined ? fmt(T.s).replace("≈", "≈ ") : "";
+    if (T.kind === "zero") { big = "A sends every point to the origin."; small = "det A = 0, so every area becomes 0."; warn = true; }
+    else if (T.kind === "flat") { big = "A flattens the shape onto a line."; small = "det A = 0, so every area becomes 0. Different points land on the same spot."; warn = true; }
+    else {
+      if (T.kind === "turn") {
+        const one = Math.abs(T.s - 1) < 1e-9, still = Math.abs(T.ang) < 1e-9;
+        big = still ? (one ? "A leaves every point where it is." : `A stretches every point away from the origin by ${s}.`)
+          : `A turns the shape ${Math.abs(T.ang) === 180 ? "halfway round, 180°" : `by ${deg(Math.abs(T.ang))} ${T.ang > 0 ? "counterclockwise" : "clockwise"}`}${one ? "" : ` and stretches it by ${s}`}.`;
+      } else if (T.kind === "flip") big = `A flips the shape over the line at ${deg(T.line)}${Math.abs(T.s - 1) < 1e-9 ? "" : ` and stretches it by ${s}`}.`;
+      else if (T.kind === "axes") big = `A stretches x by ${fmt(M[0])} and y by ${fmt(M[3])}.`;
+      else if (T.kind === "shearX") big = `A shears the shape sideways: each point slides by ${fmt(M[1])} × its y.`;
+      else if (T.kind === "shearY") big = `A shears the shape up and down: each point slides by ${fmt(M[2])} × its x.`;
+      else big = "A reshapes the figure.";
+      const D = fmt(T.det).replace("≈", "≈ "), aD = fmt(Math.abs(T.det)).replace("≈", "≈ ");
+      small = `det A = ${D}, so every area is multiplied by ${aD}.` + (T.det < 0 ? " The negative sign means the shape is flipped: an F reads backwards." : "");
+    }
+  }
+  setText("vbig", big); setText("vsmall", small, "small" + (warn ? " warn" : ""));
+  setText("merr", errs.length ? `In ${NAMES[errs[0].k]}: ${errs[0].msg} The picture uses the last entry that worked.` : "");
+  setText("mvals", T.bad || T.big ? "" : (usesTheta() ? `At ${angleText()}: ` : "") + `A = [${fmt(M[0])}, ${fmt(M[1])}; ${fmt(M[2])}, ${fmt(M[3])}]`);
+  setText("tho", S.deg ? `${S.theta}°` : `${radText()} rad`);
+  setText("cap", usesTheta() ? "Move θ or press Sweep θ to watch the shape change." : "No entry uses θ yet. Type sin θ or cos θ into a box to bring in the angle.");
+  // the table: every point and where it goes (the first 12), and the work for the chosen one
+  const tb = $("tb"), ok = !T.bad && !T.big;
+  const rows = S.pts.slice(0, 12).map((p, k) => `<tr class="pick${k === S.sel ? " sel" : ""}" data-k="${k}" tabindex="0" aria-selected="${k === S.sel}"><td>P${sub(k + 1)}</td><td>${pt(p)}</td><td>${ok ? pt(apply(M, p)) : "—"}</td></tr>`).join("");
+  if (tb.dataset.html !== rows) { tb.innerHTML = rows; tb.dataset.html = rows; }
+  setText("more", S.pts.length > 12 ? `The first 12 of ${S.pts.length} points are listed.` : "");
+  const p = S.pts[S.sel];
+  setText("work", ok && p ? `A·P${sub(S.sel + 1)} = ${fmt(p[0])} · column 1 + ${p[1] < 0 ? "(" + fmt(p[1]) + ")" : fmt(p[1])} · column 2 = ${fmt(p[0])} · (${fmt(M[0])}, ${fmt(M[2])}) + ${p[1] < 0 ? "(" + fmt(p[1]) + ")" : fmt(p[1])} · (${fmt(M[1])}, ${fmt(M[3])}) = ${pt(apply(M, p))}` : "");
+}
+
+// ---------- render ----------
+let CUR = null;
+function render() {
+  const errs = compileAll(), M = matrix(), T = describe(M);
+  CUR = { M, T };
+  // the angle controls appear only when an entry uses θ (slider, Sweep) or a trig function (degrees or radians)
+  const th = usesTheta(), ang = th || usesTrig();
+  if (!th && S.sweep) stopSweep();
+  $("throw").hidden = !th; $("sweep").hidden = !th; $("angs").hidden = !ang; $("angrow").hidden = !ang;
+  words(M, T, errs); drawFig(M, T);
+  for (const b of ["deg", "rad"]) $(b).setAttribute("aria-pressed", String((b === "deg") === S.deg));
+}
+function draw() { if (CUR) drawFig(CUR.M, CUR.T); }
+
+// ---------- inputs ----------
+let lastBox = $("m0");
+for (let k = 0; k < 4; k++) {
+  const inp = $("m" + k);
+  inp.addEventListener("focus", () => { lastBox = inp; });
+  inp.addEventListener("input", () => { S.src[k] = inp.value; render(); });
+  inp.addEventListener("blur", () => { if (inp.classList.contains("bad")) { S.src[k] = good.src[k]; inp.value = good.src[k]; render(); } });
+}
+// the keys type into the box you were last in
+document.querySelectorAll("[data-ins]").forEach(b => {
+  b.addEventListener("pointerdown", e => e.preventDefault()); // keep the box focused
+  b.addEventListener("click", () => {
+    const inp = lastBox, s = b.dataset.ins, a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a;
+    inp.value = inp.value.slice(0, a) + s + inp.value.slice(z);
+    inp.focus(); inp.setSelectionRange(a + s.length, a + s.length);
+    inp.dispatchEvent(new Event("input"));
+  });
+});
+$("th").addEventListener("input", e => { S.theta = +e.target.value; render(); });
+$("deg").addEventListener("click", () => { S.deg = true; render(); });
+$("rad").addEventListener("click", () => { S.deg = false; render(); });
+function stopSweep() { if (S.sweep) cancelAnimationFrame(S.sweep.id); S.sweep = null; $("sweep").setAttribute("aria-pressed", "false"); $("sweep").textContent = "Sweep θ"; }
+$("sweep").addEventListener("click", () => {
+  if (S.sweep) { stopSweep(); return; }
+  $("sweep").setAttribute("aria-pressed", "true"); $("sweep").textContent = "Stop";
+  let last = null, acc = S.theta;
+  const step = ts => {
+    if (last === null) last = ts;
+    if (S.theta !== Math.round(acc)) acc = S.theta; // the slider or a preset moved θ: carry on from there
+    acc += Math.max(0, ts - last) / 1000 * 45; last = ts; // 45° a second
+    acc = ((acc + 180) % 360 + 360) % 360 - 180;
+    S.theta = Math.round(acc); $("th").value = S.theta; render();
+    S.sweep = { id: requestAnimationFrame(step) };
+  };
+  S.sweep = { id: requestAnimationFrame(step) };
+});
+document.querySelectorAll("[data-m]").forEach(b => b.addEventListener("click", () => {
+  const m = MATS[b.dataset.m];
+  S.src = m.slice(0, 4); for (let k = 0; k < 4; k++) $("m" + k).value = S.src[k];
+  S.fns = []; good.src = S.src.slice(); S.theta = m[4]; $("th").value = S.theta;
+  render(); fitView(); render();
+}));
+function setPoints(text) {
+  try { S.pts = parsePoints(text); good.pts = text; if (S.sel >= S.pts.length || (S.pts.length > 1 && S.pts[S.sel].every(v => v === 0))) S.sel = Math.max(0, S.pts.findIndex(p => p.some(v => v !== 0))); $("pts").classList.remove("bad"); setText("serr", ""); S.sel = Math.min(S.sel, S.pts.length - 1); return true; }
+  catch (e) { $("pts").classList.add("bad"); setText("serr", e.message + " The picture uses the last points that worked."); return false; }
+}
+$("pts").addEventListener("input", e => { if (setPoints(e.target.value)) render(); });
+$("pts").addEventListener("blur", e => { if (e.target.classList.contains("bad")) { e.target.value = good.pts; setPoints(good.pts); render(); } });
+document.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", () => {
+  const t = ptsText(SHAPES[b.dataset.s]); $("pts").value = t; S.sel = 0; setPoints(t); fitView(); render();
+}));
+$("closed").addEventListener("change", render);
+$("cols").addEventListener("change", render);
+$("grid").addEventListener("change", render);
+const pickRow = tr => { if (!tr) return; S.sel = +tr.dataset.k; render(); };
+$("tb").addEventListener("click", e => pickRow(e.target.closest("tr")));
+$("tb").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickRow(e.target.closest("tr")); } });
+$("zoom").addEventListener("input", e => { VW.R = -e.target.value; draw(); });
+$("fit").addEventListener("click", () => { fitView(); draw(); });
+
+// ---------- panning and zooming the picture ----------
+(function attach(svg) {
+  const ptrs = new Map(); let start = null, pinch = null;
+  const toSvg = e => { const ctm = svg.getScreenCTM(); if (!ctm || !Number.isFinite(e.clientX)) return null; const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(ctm.inverse()); };
+  const zoomAbout = (R, mid, units) => {
+    R = Math.max(1, Math.min(40, R)); const U = W / (2 * R);
+    const c = [units[0] - (mid.x - W / 2) / U, units[1] + (mid.y - W / 2) / U];
+    if (!c.every(Number.isFinite)) return;
+    VW.R = R; VW.c = c.map(clampC); $("zoom").value = -R; draw();
+  };
+  svg.addEventListener("pointerdown", e => {
+    const q = toSvg(e); if (!q) return;
+    ptrs.set(e.pointerId, q); try { svg.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    e.preventDefault();
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), R: VW.R, units: view().units([mid.x, mid.y]) }; start = null; return; }
+    start = { q, c: VW.c.slice() };
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const q = toSvg(e); if (!q) return; ptrs.set(e.pointerId, q);
+    if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()], dd = Math.hypot(a.x - b.x, a.y - b.y); if (dd > 4 && pinch.d > 4) zoomAbout(pinch.R * pinch.d / dd, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, pinch.units); return; }
+    if (!start) return;
+    const U = view().U, c = [start.c[0] - (q.x - start.q.x) / U, start.c[1] + (q.y - start.q.y) / U];
+    if (c.every(Number.isFinite)) { VW.c = c.map(clampC); draw(); }
+  });
+  const end = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; start = null; };
+  svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+  svg.addEventListener("wheel", e => { if (!e.ctrlKey) return; const q = toSvg(e); if (!q) return; e.preventDefault(); zoomAbout(VW.R * Math.exp(e.deltaY * 0.01), q, view().units([q.x, q.y])); }, { passive: false });
+})($("fig"));
+
+// ---------- start ----------
+for (let k = 0; k < 4; k++) $("m" + k).value = S.src[k];
+$("th").value = S.theta;
+$("pts").value = ptsText(S.pts); good.pts = $("pts").value; setPoints(good.pts);
+compileAll(); fitView(); render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+</script>
+</body>
+</html>
